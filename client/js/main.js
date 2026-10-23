@@ -440,6 +440,16 @@ function renderMenuInventory() {
                 badge.textContent = '×' + cnt;
                 slot.appendChild(badge);
             }
+            // Грейд (Pot): золотой чип в углу карточки — UNIQUE..PARAGON.
+            const grade = it.pot > 100 ? gradeLabelOf(it.pot).split(' ×')[0] : '';
+            if (grade) {
+                const gb = document.createElement('div');
+                gb.textContent = grade;
+                gb.style.cssText = 'position:absolute;top:2px;left:2px;font-size:8px;font-weight:700;'
+                    + 'color:#1a1208;background:linear-gradient(135deg,#ffd54f,#ffb300);'
+                    + 'border-radius:4px;padding:1px 4px;letter-spacing:.4px;pointer-events:none;';
+                slot.appendChild(gb);
+            }
             // Выброс за XP (ПКМ)
             slot.addEventListener('contextmenu', (ev) => {
                 ev.preventDefault();
@@ -3525,639 +3535,23 @@ function arcPath(g, r, a0, a1, steps) {
 // performance.now(): акторы перерисовываются каждый кадр, поэтому время
 // можно использовать прямо в рисовании.
 // перерисовываются на каждом тике состояния, поэтому время «течёт».
-function drawShowcaseDesign(g, idx, size, col) {
-    g.lineStyle(0);
-    const r = size;
-    const t = performance.now() / 1000;
-    const dark = shade(col, -60);
-    const light = shade(col, 55);
-
-    if (idx === 1) {
-        // Spike: шар с 8 треугольными шипами и светлым ядром (зона Triangle).
-        g.beginFill(dark, 0.22);
-        g.drawCircle(0, 0, r * 1.35);
-        g.endFill();
-        g.lineStyle(3, 0x000000, 0.5);
-        g.beginFill(col, 1);
-        g.drawCircle(0, 0, r * 0.72);
-        g.endFill();
-        g.beginFill(dark, 0.25);
-        g.drawCircle(0, -r * 0.12, r * 0.72);
-        g.endFill();
-        for (let i = 0; i < 8; i++) {
-            const a = i * Math.PI / 4 + Math.PI / 8;
-            const cx = Math.cos(a) * r * 0.72;
-            const cy = Math.sin(a) * r * 0.72;
-            g.beginFill(light, 1);
-            g.moveTo(cx, cy);
-            g.lineTo(Math.cos(a) * r * 1.25 - Math.sin(a) * r * 0.18, Math.sin(a) * r * 1.25 + Math.cos(a) * r * 0.18);
-            g.lineTo(Math.cos(a) * r * 0.72 - Math.sin(a) * r * 0.42, Math.sin(a) * r * 0.72 + Math.cos(a) * r * 0.42);
-            g.closePath();
-            g.endFill();
-        }
-        g.lineStyle(2.5, light, 0.95);
-        g.beginFill(col, 1);
-        g.drawCircle(0, 0, r * 0.34);
-        g.endFill();
-        g.beginFill(0xffffff, 0.95);
-        g.drawCircle(0, 0, r * 0.11);
-        g.endFill();
-    } else if (idx === 2) {
-        // Star: пятиконечная звезда с двойной обводкой и бликом (зона Pentagon).
-        g.beginFill(light, 0.2);
-        g.drawCircle(0, 0, r * 1.4);
-        g.endFill();
-        g.lineStyle(3, 0x000000, 0.55);
-        g.beginFill(col, 1);
-        starPath(g, 5, r, r * 0.48, -Math.PI / 2);
-        g.endFill();
-        g.beginFill(dark, 0.3);
-        starPath(g, 5, r * 0.72, r * 0.36, -Math.PI / 2);
-        g.endFill();
-        g.lineStyle(2.5, light, 0.9);
-        g.beginFill(col, 1);
-        g.drawCircle(0, 0, r * 0.4);
-        g.endFill();
-        g.lineStyle(2, 0xffffff, 0.95);
-        g.beginFill(light, 1);
-        g.drawCircle(0, 0, r * 0.16);
-        g.endFill();
-    } else if (idx === 3) {
-        // Beads: «бусы» — два шарика-моба, соединённые гибкой шейкой. Голова
-        // (агрит головой) смотрит на +x, второй шар болтается сзади волной.
-        // Зона Point.
-        g.beginFill(dark, 0.16);
-        g.drawEllipse(-r * 0.1, 0, r * 1.5, r * 0.85);
-        g.endFill();
-        const sway = Math.sin(t * 2.4) * r * 0.14;
-        // Задняя бусина (второй моб) сзади, покачивается.
-        g.lineStyle(3, 0x000000, 0.55);
-        g.beginFill(light, 1);
-        g.drawCircle(-r * 0.95, sway, r * 0.42);
-        g.endFill();
-        g.lineStyle(0);
-        g.beginFill(dark, 0.25);
-        g.drawCircle(-r * 0.95, sway + r * 0.12, r * 0.38);
-        g.endFill();
-        g.beginFill(0xffffff, 0.5);
-        g.drawCircle(-r * 1.08, sway - r * 0.12, r * 0.1);
-        g.endFill();
-        // Шейка-связка между двумя бусинами.
-        g.lineStyle(2.5, 0x000000, 0.5);
-        g.beginFill(col, 1);
-        g.drawCircle(-r * 0.15, sway * 0.5, r * 0.26);
-        g.endFill();
-        g.lineStyle(0);
-        // Головная бусина.
-        g.lineStyle(3, 0x000000, 0.6);
-        g.beginFill(col, 1);
-        g.drawCircle(r * 0.55, 0, r * 0.6);
-        g.endFill();
-        g.lineStyle(0);
-        g.beginFill(dark, 0.22);
-        g.drawCircle(r * 0.55, r * 0.2, r * 0.57);
-        g.endFill();
-        // Антенны.
-        g.lineStyle(2.5, light, 0.95);
-        g.moveTo(r * 0.7, -r * 0.48); g.lineTo(r * 1.05, -r * 0.95);
-        g.moveTo(r * 0.4, -r * 0.55); g.lineTo(r * 0.45, -r * 1.08);
-        g.lineStyle(0);
-        g.beginFill(light, 1);
-        g.drawCircle(r * 1.05, -r * 0.95, r * 0.06);
-        g.drawCircle(r * 0.45, -r * 1.08, r * 0.06);
-        g.endFill();
-        // Улыбка.
-        g.lineStyle(2, 0x000000, 0.5);
-        g.arc(r * 0.45, r * 0.28, r * 0.24, 0.25, Math.PI - 0.55);
-        g.lineStyle(0);
-    } else if (idx === 4) {
-        // Tear: капля с бликом и внутренним градиентом (зона Point).
-        g.beginFill(light, 0.18);
-        g.drawCircle(0, -r * 0.1, r * 1.4);
-        g.endFill();
-        g.lineStyle(3, 0x000000, 0.55);
-        g.beginFill(col, 1);
-        g.moveTo(0, -r);
-        g.bezierCurveTo(r * 0.95, -r * 0.2, r * 0.85, r * 0.7, 0, r);
-        g.bezierCurveTo(-r * 0.85, r * 0.7, -r * 0.95, -r * 0.2, 0, -r);
-        g.closePath();
-        g.endFill();
-        g.beginFill(dark, 0.3);
-        g.moveTo(0, -r * 0.35);
-        g.bezierCurveTo(r * 0.8, -r * 0.05, r * 0.7, r * 0.6, 0, r);
-        g.closePath();
-        g.endFill();
-        g.lineStyle(3, 0xffffff, 0.9);
-        g.beginFill(light, 1);
-        g.drawEllipse(-r * 0.3, -r * 0.35, r * 0.14, r * 0.24);
-        g.endFill();
-        g.beginFill(0xffffff, 1);
-        g.drawCircle(-r * 0.28, -r * 0.4, r * 0.07);
-        g.endFill();
-    } else if (idx === 5) {
-        // Cross: квадратный гем-медальон ПЛЮС для Square-зоны — острые
-        // прямые ветки (без скруглений), ромбовая оправа-«оправа» позади и
-        // вращающееся ромбовое ядро; квадратные «заклёпки» на концах веток.
-        const rot5 = t * 0.9;
-        // Ромб-оправа позади корпуса (лёгкий пульс + вращение).
-        const w5 = r * 1.26 * (1 + 0.03 * Math.sin(t * 2.4));
-        const diaPts = (rad, base) => {
-            for (let i = 0; i < 4; i++) {
-                const a5 = base + (i / 4) * Math.PI * 2;
-                const x = Math.cos(a5) * rad, y = Math.sin(a5) * rad;
-                if (i === 0) g.moveTo(x, y);
-                else g.lineTo(x, y);
-            }
-            g.closePath();
-        };
-        g.lineStyle(2.4, dark, 0.95);
-        diaPts(w5, rot5 * 0.35);
-        g.lineStyle(1.2, light, 0.45);
-        diaPts(w5 * 0.82, rot5 * 0.35);
-        // Острый плюс-корпус: два прямоугольника без скруглений.
-        g.lineStyle(3, 0x000000, 0.6);
-        g.beginFill(col, 1);
-        g.drawRect(-r * 0.3, -r, r * 0.6, r * 2);
-        g.drawRect(-r, -r * 0.3, r * 2, r * 0.6);
-        g.endFill();
-        g.lineStyle(0);
-        // Фасетные тени нижней и правой ветки (свет сверху-слева).
-        g.beginFill(dark, 0.28);
-        g.drawRect(-r * 0.3, r * 0.34, r * 0.6, r * 0.66);
-        g.drawRect(r * 0.34, -r * 0.3, r * 0.66, r * 0.6);
-        g.endFill();
-        // Светлая внутренняя кромка по контуру плюса (гранёность).
-        g.lineStyle(1.4, light, 0.55);
-        g.drawRect(-r * 0.18, -r * 0.86, r * 0.36, r * 1.72);
-        g.drawRect(-r * 0.86, -r * 0.18, r * 1.72, r * 0.36);
-        // Вращающееся ромбовое ядро по центру.
-        g.lineStyle(2, 0xffffff, 0.9);
-        g.beginFill(col, 1);
-        diaPts(r * 0.5, Math.PI / 4 + rot5);
-        g.endFill();
-        g.lineStyle(0);
-        // Фасет тени: нижний сектор повернутого ромба (от боковой вершины
-        // через нижнюю к центру).
-        const b5 = Math.PI / 4 + rot5;
-        g.beginFill(dark, 0.3);
-        g.moveTo(Math.cos(b5) * r * 0.5, Math.sin(b5) * r * 0.5);
-        g.lineTo(Math.cos(b5 + Math.PI / 2) * r * 0.5, Math.sin(b5 + Math.PI / 2) * r * 0.5);
-        g.lineTo(0, 0);
-        g.closePath();
-        g.endFill();
-        g.lineStyle(1.2, light, 0.8);
-        diaPts(r * 0.26, Math.PI / 4 + rot5);
-        g.lineStyle(0);
-        // Квадратные «заклёпки» на концах веток (пульс).
-        const g5 = 0.5 + 0.5 * Math.sin(t * 3);
-        g.beginFill(light, 0.55 + 0.35 * g5);
-        for (const [dx, dy] of [[0, -r * 0.88], [0, r * 0.88], [-r * 0.88, 0], [r * 0.88, 0]]) {
-            g.drawRect(dx - r * 0.09, dy - r * 0.09, r * 0.18, r * 0.18);
-        }
-        g.endFill();
-    } else if (idx === 6) {
-        // Saturn: планета с наклонным кольцом, проходящим ЗА планетой (верхняя
-        // дуга) и ПЕРЕД ней (нижняя дуга), с яркими полосами и луной на орбите.
-        // Никаких прозрачных обводок поверх планеты.
-        g.beginFill(0x0a0f15, 0.45);
-        g.drawCircle(r * 0.06, r * 0.3, r * 1.02);
-        g.endFill();
-        g.beginFill(light, 0.1);
-        g.drawCircle(0, 0, r * 1.3);
-        g.endFill();
-        const tilt = -0.38;
-        const rx = r * 1.32, ry = r * 0.4;
-        const ept = (a, k) => {
-            const x = Math.cos(a) * rx * k, y = Math.sin(a) * ry * k;
-            return [x * Math.cos(tilt) - y * Math.sin(tilt), x * Math.sin(tilt) + y * Math.cos(tilt)];
-        };
-        const bandArc = (from, to, w, cc, aa, k) => {
-            g.lineStyle(w, cc, aa);
-            for (let i = 0; i <= 26; i++) {
-                const a = from + (to - from) * i / 26;
-                const p = ept(a, k);
-                if (i === 0) g.moveTo(p[0], p[1]);
-                else g.lineTo(p[0], p[1]);
-            }
-        };
-        // ЗАДНЯЯ дуга (за планетой): верхняя половина эллипса.
-        bandArc(Math.PI, 2 * Math.PI, 8, dark, 0.85, 1);
-        bandArc(Math.PI, 2 * Math.PI, 4, light, 0.9, 0.98);
-        bandArc(Math.PI, 2 * Math.PI, 1.6, 0xffffff, 0.7, 0.94);
-        g.lineStyle(0);
-        // Планета: газовый гигант с полосами и терминатором.
-        g.lineStyle(3, 0x000000, 0.6);
-        g.beginFill(col, 1);
-        g.drawCircle(0, 0, r * 0.66);
-        g.endFill();
-        g.lineStyle(0);
-        g.beginFill(dark, 0.4);
-        g.drawEllipse(0, r * 0.14, r * 0.66, r * 0.52);
-        g.endFill();
-        g.beginFill(light, 0.3);
-        g.drawEllipse(-r * 0.08, -r * 0.3, r * 0.52, r * 0.24);
-        g.endFill();
-        g.beginFill(0xffffff, 0.5);
-        g.drawCircle(-r * 0.24, -r * 0.3, r * 0.13);
-        g.endFill();
-        g.beginFill(dark, 0.35);
-        g.drawEllipse(r * 0.3, r * 0.05, r * 0.18, r * 0.1);
-        g.endFill();
-        // ПЕРЕДНЯЯ дуга (перед планетой): нижняя половина эллипса.
-        bandArc(0, Math.PI, 8, dark, 0.9, 1);
-        bandArc(0, Math.PI, 4, light, 1, 0.98);
-        bandArc(0, Math.PI, 1.6, 0xffffff, 0.8, 0.94);
-        g.lineStyle(0);
-        // Луна на орбите.
-        g.beginFill(0xdfe8f2, 1);
-        g.drawCircle(r * 1.02, -r * 0.92, r * 0.1);
-        g.endFill();
-        g.lineStyle(1.2, 0xffffff, 0.55);
-        g.drawCircle(r * 1.02, -r * 0.92, r * 0.16);
-        g.lineStyle(0);
-    } else if (idx === 7) {
-        // Sun: солнце с 12 лучами, пульсирующей короной и ядром (зона Fractal).
-        const pulse = 1 + Math.sin(t * 2.2) * 0.05;
-        g.beginFill(light, 0.2);
-        g.drawCircle(0, 0, r * 1.5 * pulse);
-        g.endFill();
-        g.lineStyle(3, 0x000000, 0.4);
-        g.beginFill(col, 1);
-        starPath(g, 12, r * pulse, r * 0.82, 0);
-        g.endFill();
-        g.lineStyle(3, 0x000000, 0.55);
-        g.beginFill(col, 1);
-        g.drawCircle(0, 0, r * 0.7);
-        g.endFill();
-        g.beginFill(dark, 0.25);
-        g.drawCircle(0, r * 0.08, r * 0.7);
-        g.endFill();
-        g.lineStyle(2.5, 0xffffff, 0.95);
-        g.beginFill(light, 1);
-        g.drawCircle(0, 0, r * 0.3);
-        g.endFill();
-        g.beginFill(0xffffff, 1);
-        g.drawCircle(0, 0, r * 0.1);
-        g.endFill();
-    } else if (idx === 8) {
-        // Eye: «глаз» — миндалина, радужка и зрачок с бликом (зона Chaos).
-        g.beginFill(dark, 0.22);
-        g.drawCircle(0, 0, r * 1.4);
-        g.endFill();
-        g.lineStyle(3, 0x000000, 0.6);
-        g.beginFill(col, 1);
-        g.drawEllipse(0, 0, r, r * 0.78);
-        g.endFill();
-        g.lineStyle(2.5, 0x000000, 0.5);
-        g.beginFill(dark, 0.5);
-        g.drawEllipse(0, 0, r * 0.82, r * 0.62);
-        g.endFill();
-        g.beginFill(light, 1);
-        g.drawEllipse(0, 0, r * 0.6, r * 0.46);
-        g.endFill();
-        g.beginFill(0x000000, 0.9);
-        g.drawCircle(0, 0, r * 0.22);
-        g.endFill();
-        g.beginFill(0xffffff, 1);
-        g.drawCircle(-r * 0.18, -r * 0.15, r * 0.09);
-        g.endFill();
-        g.lineStyle(2, light, 0.9);
-        g.beginFill(dark, 0.3);
-        g.drawEllipse(0, -r * 0.55, r * 0.55, r * 0.12);
-        g.endFill();
-        g.lineStyle(0);
-    } else if (idx === 9) {
-        // Galaxy: живая спиральная галактика — два вращающихся рукава из
-        // мерцающих звёздных точек, пульсирующее ядро и орбитальная пыль.
-        g.beginFill(0x0a0618, 0.55);
-        g.drawCircle(0, 0, r * 1.35);
-        g.endFill();
-        const arms = 2, steps = 34;
-        for (let arm = 0; arm < arms; arm++) {
-            for (let i = 0; i < steps; i++) {
-                const f = i / steps;
-                const ang = t * 0.9 + arm * Math.PI + f * 3.6;
-                const rad = f * r * 1.15;
-                const x = Math.cos(ang) * rad;
-                const y = Math.sin(ang) * rad * 0.62;
-                const sz = (1 - f) * r * 0.085 + r * 0.03;
-                const tw = 0.55 + 0.45 * Math.sin(t * 3 + i * 0.7 + arm * 2);
-                g.beginFill(i % 3 === 0 ? 0xffd9f2 : light, tw);
-                g.drawCircle(x, y, sz);
-                g.endFill();
-            }
-        }
-        g.beginFill(0xffffff, 0.7);
-        for (let i = 0; i < 10; i++) {
-            const a = i * 2.399 + t * 0.25;
-            const rad = r * (0.5 + 0.75 * ((i * 37) % 10) / 10);
-            g.drawCircle(Math.cos(a) * rad, Math.sin(a) * rad * 0.72, r * 0.035);
-        }
-        g.endFill();
-        const np = 1 + Math.sin(t * 2.6) * 0.12;
-        g.beginFill(light, 0.35);
-        g.drawEllipse(0, 0, r * 0.55 * np, r * 0.4 * np);
-        g.endFill();
-        g.beginFill(0xffe9fb, 0.95);
-        g.drawEllipse(0, 0, r * 0.3 * np, r * 0.22 * np);
-        g.endFill();
-        g.beginFill(0xffffff, 1);
-        g.drawCircle(0, 0, r * 0.1 * np);
-        g.endFill();
-    } else if (idx === 10) {
-        // Mote: тёмное ядро с орбитальными «мотыльками»-искрами (Fractal).
-        g.beginFill(dark, 0.25);
-        g.drawCircle(0, 0, r * 1.4);
-        g.endFill();
-        g.lineStyle(3, 0x000000, 0.55);
-        g.beginFill(col, 1);
-        g.drawCircle(0, 0, r * 0.55);
-        g.endFill();
-        g.lineStyle(0);
-        g.beginFill(dark, 0.4);
-        g.drawCircle(0, r * 0.08, r * 0.55);
-        g.endFill();
-        g.lineStyle(2, light, 0.9);
-        g.beginFill(light, 0.8);
-        g.drawCircle(0, 0, r * 0.22);
-        g.endFill();
-        g.lineStyle(0);
-        g.lineStyle(1.2, light, 0.4);
-        g.drawEllipse(0, 0, r * 1.1, r * 0.45);
-        g.drawEllipse(0, 0, r * 0.45, r * 1.1);
-        g.lineStyle(0);
-        g.beginFill(0xffffff, 1);
-        const m1 = t * 1.7, m2 = -t * 1.2 + 1;
-        g.drawCircle(Math.cos(m1) * r * 1.1, Math.sin(m1) * r * 0.45, r * 0.07);
-        g.drawCircle(Math.cos(m2) * r * 0.45, Math.sin(m2) * r * 1.1, r * 0.07);
-        g.endFill();
-    } else if (idx === 11) {
-        // Aeon: парящий светлый гексагон с двойным контуром и частицами (Fractal).
-        const fl = Math.sin(t * 1.8) * r * 0.05;
-        g.beginFill(dark, 0.22);
-        g.drawCircle(0, fl * 0.5, r * 1.4);
-        g.endFill();
-        g.lineStyle(3, 0x000000, 0.55);
-        g.beginFill(col, 1);
-        hexPath(g, r * 0.9, Math.PI / 6);
-        g.endFill();
-        g.lineStyle(0);
-        g.beginFill(0xffffff, 0.16);
-        hexPath(g, r * 0.9, Math.PI / 6);
-        g.endFill();
-        g.lineStyle(2, light, 0.9);
-        hexPath(g, r * 0.6, 0);
-        g.lineStyle(0);
-        g.beginFill(light, 1);
-        hexPath(g, r * 0.3, Math.PI / 6);
-        g.endFill();
-        g.beginFill(0xffffff, 1);
-        g.drawCircle(0, fl, r * 0.08);
-        g.endFill();
-        g.beginFill(light, 0.9);
-        for (let i = 0; i < 4; i++) {
-            const a = i * Math.PI / 2 + t * 0.6;
-            const rad = r * 1.2 + Math.sin(t * 2 + i) * r * 0.08;
-            g.drawCircle(Math.cos(a) * rad, Math.sin(a) * rad * 0.6 + fl, r * 0.045);
-        }
-        g.endFill();
-    } else if (idx === 12) {
-        // Rune: фиолетовый гексагон-артефакт с руной и орбитальными искрами (Fractal).
-        g.beginFill(dark, 0.22);
-        g.drawCircle(0, 0, r * 1.4);
-        g.endFill();
-        g.lineStyle(3, 0x000000, 0.55);
-        g.beginFill(col, 1);
-        hexPath(g, r * 0.95, 0);
-        g.endFill();
-        g.lineStyle(0);
-        g.beginFill(dark, 0.35);
-        hexPath(g, r * 0.62, 0);
-        g.endFill();
-        g.lineStyle(2.5, 0xffffff, 0.95);
-        g.moveTo(0, -r * 0.5); g.lineTo(r * 0.28, 0);
-        g.lineTo(0, r * 0.5); g.lineTo(-r * 0.28, 0);
-        g.closePath();
-        g.moveTo(-r * 0.28, 0); g.lineTo(r * 0.28, 0);
-        g.lineStyle(0);
-        g.beginFill(light, 1);
-        for (let i = 0; i < 3; i++) {
-            const a = t * 1.4 + i * (Math.PI * 2 / 3);
-            g.drawCircle(Math.cos(a) * r * 1.15, Math.sin(a) * r * 1.15, r * 0.07);
-        }
-        g.endFill();
-    } else if (idx === 13) {
-        // Cog: шестерёнка с восемью зубьями, осью и болтами. Позже станет
-        // реальным мобом и будет дропать Cog-петаль.
-        g.beginFill(dark, 0.22);
-        g.drawCircle(0, 0, r * 1.4);
-        g.endFill();
-        g.lineStyle(3, 0x000000, 0.55);
-        g.beginFill(col, 1);
-        const teeth = 8;
-        for (let i = 0; i < teeth * 2; i++) {
-            const a = i * Math.PI / teeth - Math.PI / 2;
-            const rr = (i % 2 === 0) ? r : r * 0.74;
-            const x = Math.cos(a) * rr, y = Math.sin(a) * rr;
-            if (i === 0) g.moveTo(x, y);
-            else g.lineTo(x, y);
-        }
-        g.closePath();
-        g.endFill();
-        g.lineStyle(0);
-        g.beginFill(dark, 0.3);
-        g.drawCircle(0, 0, r * 0.62);
-        g.endFill();
-        g.lineStyle(2.5, light, 0.9);
-        g.beginFill(col, 1);
-        g.drawCircle(0, 0, r * 0.32);
-        g.endFill();
-        g.beginFill(0x0a0f15, 0.9);
-        g.drawCircle(0, 0, r * 0.14);
-        g.endFill();
-        g.lineStyle(0);
-        g.beginFill(dark, 1);
-        for (let i = 0; i < 4; i++) {
-            const a = i * Math.PI / 2 + Math.PI / 4;
-            g.drawCircle(Math.cos(a) * r * 0.47, Math.sin(a) * r * 0.47, r * 0.05);
-        }
-        g.endFill();
-    } else if (idx === 14) {
-        // Comet: прежний вид — светящееся ядро-голова впереди (+x) и длинный
-        // хвост-конус позади. Анимация «живая»: хвост мягко мерцает, из-под
-        // головы срываются искры и уплывают по хвосту, ореол дышит.
-        // При «агро» головой поворачивается на игрока (tick).
-        g.beginFill(dark, 0.15);
-        g.drawCircle(r * 0.2, 0, r * 1.4);
-        g.endFill();
-        g.lineStyle(0);
-        const tailFlick = 0.65 + 0.35 * Math.sin(t * 5);
-        g.beginFill(col, 0.35 * tailFlick);
-        g.moveTo(r * 0.35, -r * 0.42);
-        g.lineTo(-r * 1.35, 0);
-        g.lineTo(r * 0.35, r * 0.42);
-        g.closePath();
-        g.endFill();
-        g.beginFill(col, 0.65 * tailFlick);
-        g.moveTo(r * 0.35, -r * 0.22);
-        g.lineTo(-r * 0.9, 0);
-        g.lineTo(r * 0.35, r * 0.22);
-        g.closePath();
-        g.endFill();
-        g.lineStyle(3, 0x000000, 0.55);
-        g.beginFill(light, 1);
-        g.drawCircle(r * 0.5, 0, r * 0.45);
-        g.endFill();
-        g.lineStyle(0);
-        g.beginFill(0xffffff, 1);
-        g.drawCircle(r * 0.62, -r * 0.08, r * 0.16);
-        g.endFill();
-        // Искры, срывающиеся с головы и уплывающие по хвосту.
-        for (let i = 0; i < 6; i++) {
-            const f = (i / 6 + t * 0.05) % 1;
-            const sx = r * 0.3 - r * 1.7 * f;
-            const sy = Math.sin(t * 4 + i * 2.1) * r * 0.06 * (0.3 + f);
-            g.beginFill(0xffffff, 0.8 * (1 - f));
-            g.drawCircle(sx, sy, r * 0.045 * (1 - f * 0.5));
-            g.endFill();
-        }
-        // Трепещущий ореол вокруг головы — «заряд» при приближении игрока.
-        const cometGp = 0.75 + 0.25 * Math.sin(t * 5);
-        g.lineStyle(2.5, light, 0.55 * (0.5 + 0.5 * Math.sin(t * 3)));
-        g.drawCircle(r * 0.5, 0, r * (0.62 + 0.1 * cometGp));
-        g.lineStyle(0);
-    } else if (idx === 15) {
-        // Beam: излучатель позади, концентрированный луч вперёд (+x) с
-        // пульсацией. При «агро» цель поворота — голова-луч (tick).
-        const gp = 0.85 + Math.sin(t * 3) * 0.15;
-        g.beginFill(dark, 0.15);
-        g.drawCircle(-r * 0.7, 0, r * 1.15);
-        g.endFill();
-        g.lineStyle(0);
-        g.beginFill(col, 0.8 * gp);
-        g.moveTo(-r * 0.6, -r * 0.18);
-        g.lineTo(r * 1.35, -r * 0.05);
-        g.lineTo(r * 1.35, r * 0.05);
-        g.lineTo(-r * 0.6, r * 0.18);
-        g.closePath();
-        g.endFill();
-        g.beginFill(0xffffff, 0.95);
-        g.moveTo(-r * 0.6, -r * 0.07);
-        g.lineTo(r * 1.35, 0);
-        g.lineTo(-r * 0.6, r * 0.07);
-        g.closePath();
-        g.endFill();
-        g.lineStyle(3, 0x000000, 0.55);
-        g.beginFill(dark, 1);
-        g.drawCircle(-r * 0.75, 0, r * 0.4);
-        g.endFill();
-        g.lineStyle(0);
-        g.beginFill(light, 1);
-        g.drawCircle(-r * 0.75, 0, r * 0.22);
-        g.endFill();
-        g.beginFill(0xffffff, 1);
-        g.drawCircle(-r * 0.75, 0, r * 0.09);
-        g.endFill();
-        // «Голова» — электрический наконечник в конце луча.
-        const er = r * 0.30; // амплитуда искр
-        // 1) Пульсирующее электрическое сияние вокруг кончика.
-        g.lineStyle(5, light, 0.35 + 0.3 * Math.sin(t * 9));
-        g.beginFill(0xffffff, 0.22 + 0.18 * Math.sin(t * 11));
-        g.drawCircle(r * 1.42, 0, er * 2.2 + er * 0.6 * Math.sin(t * 8));
-        g.endFill();
-        g.lineStyle(0);
-        // 2) Дрожащие разряды-молнии, прыгающие с кончика вперёд (веером).
-        for (let k = 0; k < 4; k++) {
-            const flick = Math.sin(t * 21 + k * 2.9);
-            const ang = (-0.85 + k * 0.55) + flick * 0.10;
-            const lx = Math.cos(ang), ly = Math.sin(ang);
-            const px = -ly, py = lx; // перпендикуляр к направлению разряда
-            g.lineStyle(3.5 - k * 0.6, k === 0 ? 0xffffff : light, (0.85 - k * 0.15) * (0.7 + 0.3 * Math.abs(flick)));
-            g.moveTo(r * 1.40, 0);
-            for (let s = 1; s <= 5; s++) {
-                const f = s / 5;
-                const wob = Math.sin(t * 27 + k * 5.1 + s * 9.7) * er * (1 - f * 0.45);
-                g.lineTo(r * 1.40 + lx * r * 0.6 * f + px * wob, ly * r * 0.6 * f + py * wob);
-            }
-        }
-        // 3) Яркое ядро разряда на самом кончике.
-        g.lineStyle(3, 0xffffff, 0.95);
-        g.beginFill(light, 1);
-        g.drawCircle(r * 1.40, 0, er * 0.55 + er * 0.2 * Math.sin(t * 13));
-        g.endFill();
-        g.beginFill(0xffffff, 1);
-        g.drawCircle(r * 1.40, 0, er * 0.30);
-        g.endFill();
-        g.lineStyle(0);
-    } else if (idx === 16) {
-        // Prism: чёткий продолговатый ромб-«стрела» — острый нос (+X) показывает
-        // направление движения (поворот делает generic-rotation по dirX/dirY).
-        // БЕЗ круглой ауры: только сам кристалл с фасетами и деталями.
-        const nose = r * 1.08, side = r * 0.85, tail = r * 0.68;
-        // Корпус.
-        g.lineStyle(3, 0x000000, 0.6);
-        g.beginFill(col, 1);
-        g.moveTo(nose, 0);
-        g.lineTo(0, -side);
-        g.lineTo(-tail, 0);
-        g.lineTo(0, side);
-        g.closePath();
-        g.endFill();
-        g.lineStyle(0);
-        // Нижняя фасета темнее (верхний полусвет — как у гранёного кристалла).
-        g.beginFill(dark, 0.32);
-        g.moveTo(nose, 0);
-        g.lineTo(0, side);
-        g.lineTo(-tail, 0);
-        g.closePath();
-        g.endFill();
-        // Внутренний контур-грань (внутри силуэта).
-        const ins = 0.62;
-        g.lineStyle(1.6, light, 0.5);
-        g.moveTo(nose * ins, 0);
-        g.lineTo(0, -side * ins);
-        g.lineTo(-tail * ins, 0);
-        g.lineTo(0, side * ins);
-        g.closePath();
-        // Хребет-ось от хвоста к носу.
-        g.lineStyle(1.4, light, 0.65);
-        g.moveTo(-tail * 0.9, 0);
-        g.lineTo(nose * ins, 0);
-        // Стрелка-шеврон у носа (подчёркивает направление).
-        g.lineStyle(2, 0xffffff, 0.85);
-        g.moveTo(nose * 0.44, -r * 0.3);
-        g.lineTo(nose * 0.72, 0);
-        g.lineTo(nose * 0.44, r * 0.3);
-        // Бегущий блик по верхней кромке (нос → бок → хвост).
-        const sEdge = (t * 0.7) % 1;
-        let ex, ey;
-        if (sEdge < 0.5) {
-            ex = nose + (0 - nose) * sEdge * 2;
-            ey = -side * sEdge * 2;
-        } else {
-            const f = (sEdge - 0.5) * 2;
-            ex = -tail * f;
-            ey = -side * (1 - f);
-        }
-        g.beginFill(0xffffff, 0.9);
-        g.drawCircle(ex, ey, r * 0.05);
-        g.endFill();
-        // Пульсирующее ядро ближе к носу.
-        g.beginFill(0xffffff, 0.85);
-        g.drawCircle(r * 0.12, 0, r * (0.1 + 0.03 * Math.sin(t * 3.4)));
-        g.endFill();
-        g.beginFill(0xffffff, 1);
-        g.drawCircle(r * 0.12, 0, r * 0.04);
-        g.endFill();
-    } else {
-        // Запасной вариант: простой круг — на случай неверного номера.
-        g.beginFill(col, 0.9);
-        g.drawCircle(0, 0, r * 0.8);
-        g.endFill();
-        g.lineStyle(2.5, light, 1);
-        g.drawCircle(0, 0, r * 0.8);
-        g.lineStyle(0);
+function drawShowcaseDesign(g, idx, size, col, label) {
+    // Витрина 2.0 (порт родителя): слоты 24-77 — авторские дизайны
+    // SHOWCASE_DESIGNS, остальные — легаси-витрина (включая 20/21/26/39/68/70/111
+    // — формы новых мобов Arrowhead/Shardwing/Kite-Lancer/Frame/Nova/Mirror/Trinity).
+    let slot = parseInt(label, 10);
+    if (!slot || slot < 1) slot = idx;
+    if (typeof drawShowcaseSlot === 'function' && slot >= 24 && slot <= 77) {
+        drawShowcaseSlot(slot, g, size, col);
+        return;
     }
+    if (typeof drawShowcaseLegacy === 'function') {
+        drawShowcaseLegacy(g, idx, size, col);
+        return;
+    }
+    g.beginFill(col, 0.9);
+    g.drawCircle(0, 0, size * 0.8);
+    g.endFill();
 }
 
 function drawMobShape(g, m) {
@@ -4639,6 +4033,203 @@ function drawMobShape(g, m) {
             g.drawCircle(sx * (w - 5), sy * (h - 5), 3);
         }
         g.endFill();
+    } else if (shape === 'tank') {
+        // ФРАГТАНК (главный моб Fractal-зоны): фиолетовый танк — гусеницы
+        // по бокам, скошенный корпус с энергетическими швами, башня-купол
+        // с пушкой (поворачивается «сканированием») и рунным ядром.
+        const s = size;
+        const hw = s * 1.55; // полуширина корпуса (вдоль движения)
+        const hh = s * 1.05; // полувысота корпуса
+        const tw = s * 0.5;  // ширина гусеницы
+        const t = performance.now() * 0.003;
+        const pulse = 0.5 + 0.5 * Math.sin(t);
+        // Гусеницы: тёмные ленты с поперечными траками.
+        g.lineStyle(3, 0x000000, 0.6);
+        g.beginFill(0x161220, 1);
+        g.drawRoundedRect(-hw - s * 0.1, -hh - tw * 0.9, (hw + s * 0.1) * 2, tw, tw * 0.45);
+        g.drawRoundedRect(-hw - s * 0.1, hh + tw * 0.9 - tw, (hw + s * 0.1) * 2, tw, tw * 0.45);
+        g.endFill();
+        g.lineStyle(0);
+        g.beginFill(0x3d3452, 1);
+        for (let i = 0; i < 7; i++) {
+            const tx = -hw + (i * (hw * 2 - s * 0.16)) / 6;
+            g.drawRoundedRect(tx, -hh - tw * 0.9, s * 0.12, tw, 2);
+            g.drawRoundedRect(tx, hh + tw * 0.9 - tw, s * 0.12, tw, 2);
+        }
+        // Корпус: скошенная броня (нос и корма срезаны).
+        g.lineStyle(3, 0x000000, 0.65);
+        g.beginFill(m.color, 1);
+        g.moveTo(-hw, -hh * 0.55);
+        g.lineTo(-hw * 0.55, -hh);
+        g.lineTo(hw * 0.55, -hh);
+        g.lineTo(hw, -hh * 0.55);
+        g.lineTo(hw, hh * 0.55);
+        g.lineTo(hw * 0.55, hh);
+        g.lineTo(-hw * 0.55, hh);
+        g.lineTo(-hw, hh * 0.55);
+        g.closePath();
+        g.endFill();
+        // Броневые фаски: светлая верхняя половина, тёмная нижняя.
+        g.lineStyle(0);
+        g.beginFill(light, 0.24);
+        g.moveTo(-hw, -hh * 0.55);
+        g.lineTo(-hw * 0.55, -hh);
+        g.lineTo(hw * 0.55, -hh);
+        g.lineTo(hw, -hh * 0.55);
+        g.lineTo(hw, 0);
+        g.lineTo(-hw, 0);
+        g.closePath();
+        g.endFill();
+        g.beginFill(dark, 0.4);
+        g.moveTo(-hw, 0);
+        g.lineTo(hw, 0);
+        g.lineTo(hw, hh * 0.55);
+        g.lineTo(hw * 0.55, hh);
+        g.lineTo(-hw * 0.55, hh);
+        g.lineTo(-hw, hh * 0.55);
+        g.closePath();
+        g.endFill();
+        // Энергетические швы на корпусе (пульсируют) — «фрактальная» начинка.
+        g.lineStyle(2.2, light, 0.45 + 0.45 * pulse);
+        g.moveTo(-hw * 0.75, -hh * 0.3);
+        g.lineTo(-hw * 0.2, -hh * 0.3);
+        g.moveTo(-hw * 0.75, hh * 0.3);
+        g.lineTo(-hw * 0.2, hh * 0.3);
+        g.moveTo(hw * 0.2, -hh * 0.3);
+        g.lineTo(hw * 0.75, -hh * 0.3);
+        g.moveTo(hw * 0.2, hh * 0.3);
+        g.lineTo(hw * 0.75, hh * 0.3);
+        // Пушка: башня наведена СЕРВЕРОМ на цель агрессии (turret — мировой
+        // угол); в пассиве — по направлению движения. Локальный угол =
+        // мировой минус текущий поворот корпуса (он сглажен клиентом).
+        const bl = s * 1.55; // длина ствола
+        const turretL = (m.turret || 0) - g.rotation;
+        const bc = Math.cos(turretL), bs = Math.sin(turretL);
+        g.lineStyle(s * 0.34, 0x1c2230, 1);
+        g.moveTo(0, 0);
+        g.lineTo(bc * bl, bs * bl);
+        g.lineStyle(s * 0.16, 0x4a5570, 1);
+        g.moveTo(0, 0);
+        g.lineTo(bc * bl, bs * bl);
+        g.lineStyle(0);
+        g.beginFill(0x2a3040, 1);
+        g.drawCircle(bc * bl, bs * bl, s * 0.2);
+        g.endFill();
+        g.beginFill(light, 0.5 + 0.3 * pulse);
+        g.drawCircle(bc * bl, bs * bl, s * 0.09);
+        g.endFill();
+        // Башня-купол: тёмный обод, броня цвета моба, блик.
+        g.lineStyle(3, 0x1c2230, 1);
+        g.beginFill(m.color, 1);
+        g.drawCircle(0, 0, s * 0.68);
+        g.endFill();
+        g.lineStyle(0);
+        g.beginFill(light, 0.3);
+        g.drawCircle(-s * 0.16, -s * 0.16, s * 0.42);
+        g.endFill();
+        // Руна-ядро на башне (пульс).
+        g.lineStyle(1.8, light, 0.85);
+        g.drawCircle(0, 0, s * 0.3);
+        g.lineStyle(0);
+        g.beginFill(light, 0.6 + 0.4 * pulse);
+        g.drawCircle(0, 0, s * 0.14);
+        g.endFill();
+        g.beginFill(0xffffff, 0.9);
+        g.drawCircle(0, 0, s * 0.06);
+        g.endFill();
+    }
+    else if (shape === 'zigzag') {
+        const s = size;
+        const tt = performance.now() / 1000;
+        g.lineStyle(3, 0x000000, 0.55);
+        g.beginFill(col, 1);
+        g.moveTo(s * 1.25, 0);
+        g.lineTo(s * 0.2, -s * 0.55);
+        g.lineTo(-s * 0.35, -s * 0.28);
+        g.lineTo(-s * 1.05, -s * 0.62);
+        g.lineTo(-s * 0.55, 0);
+        g.lineTo(-s * 1.05, s * 0.62);
+        g.lineTo(-s * 0.35, s * 0.28);
+        g.lineTo(s * 0.2, s * 0.55);
+        g.closePath();
+        g.endFill();
+        g.lineStyle(0);
+        g.beginFill(dark, 0.35);
+        g.moveTo(s * 1.25, 0);
+        g.lineTo(s * 0.2, -s * 0.55);
+        g.lineTo(-s * 0.55, 0);
+        g.closePath();
+        g.endFill();
+        // Пульсирующая искра в сердце.
+        const pul = 0.6 + 0.4 * Math.sin(tt * 9);
+        g.beginFill(0xfff3c0, pul);
+        g.drawCircle(s * 0.25, 0, s * 0.24 * pul + s * 0.08);
+        g.endFill();
+        g.lineStyle(2, light, 0.9);
+        g.moveTo(-s * 0.9, -s * 0.4); g.lineTo(-s * 0.45, 0); g.lineTo(-s * 0.9, s * 0.4);
+        g.lineStyle(0);
+        return;
+    }
+    else if (shape === 'quarry') {
+        const s = size * 0.95;
+        const tt = performance.now() / 1000;
+        g.lineStyle(3, 0x000000, 0.55);
+        g.beginFill(col, 1);
+        g.drawRoundedRect(-s, -s * 0.9, s * 2, s * 1.8, s * 0.14);
+        g.endFill();
+        g.lineStyle(0);
+        g.beginFill(0x000000, 0.22);
+        g.drawRoundedRect(-s, -s * 0.9, s * 2, s * 0.85, s * 0.14);
+        g.endFill();
+        // Кладка: швы.
+        g.lineStyle(2, 0x000000, 0.4);
+        for (let i = -1; i <= 1; i++) {
+            g.moveTo(-s * 0.8, i * s * 0.42);
+            g.lineTo(s * 0.8, i * s * 0.42);
+        }
+        for (let i = -1; i <= 1; i++) {
+            const off = (i % 2 === 0) ? s * 0.42 : 0;
+            g.moveTo(off, -s * 0.9); g.lineTo(off, -s * 0.48);
+            g.moveTo(off - s * 0.42, s * 0.48); g.lineTo(off - s * 0.42, s * 0.9);
+        }
+        // Янтарная руда: три вкрапления, мерцают вразнобой.
+        for (let i = 0; i < 3; i++) {
+            const gx = (i - 1) * s * 0.55;
+            const gy = (i === 1) ? -s * 0.15 : s * 0.35;
+            const gl = 0.55 + 0.45 * Math.sin(tt * 2.2 + i * 2.1);
+            g.beginFill(0xffc95e, gl);
+            g.drawCircle(gx, gy, s * 0.13);
+            g.endFill();
+            g.beginFill(0xffffff, gl * 0.5);
+            g.drawCircle(gx - s * 0.04, gy - s * 0.04, s * 0.05);
+            g.endFill();
+        }
+        // Трещина.
+        g.lineStyle(2, 0x1a1210, 0.6);
+        g.moveTo(-s * 0.3, -s * 0.9);
+        g.lineTo(-s * 0.1, -s * 0.35); g.lineTo(-s * 0.42, s * 0.1); g.lineTo(-s * 0.15, s * 0.5);
+        g.lineStyle(0);
+        return;
+    }
+    else if (shape === 'nexus') {
+        // Nexus («ИИ-игрок»): тело БУКВАЛЬНО как у игрока — та же отрисовка
+        // шара, что в drawPlayerSprite (свечение, круг, блик, тёмный обод,
+        // светлая окантовка). Цвет — из m.color (скин из палитры меню).
+        const R = size;
+        g.beginFill(m.color, 0.22);
+        g.drawCircle(0, 0, R + 6);
+        g.endFill();
+        g.beginFill(m.color, 1);
+        g.drawCircle(0, 0, R);
+        g.endFill();
+        g.beginFill(light, 0.55);
+        g.drawEllipse(-R * 0.28, -R * 0.38, R * 0.52, R * 0.32);
+        g.endFill();
+        g.lineStyle(2, dark, 0.9);
+        g.drawCircle(0, 0, R);
+        g.lineStyle(1.5, petalShade(m.color, 1.7), 0.95);
+        g.drawCircle(0, 0, R + 1);
+        g.lineStyle(0);
     } else {
         // Circle
         const R = size;
@@ -6091,17 +5682,17 @@ const PETAL_DB = {
     // cd = время полной ПЕРЕЗАРЯДКИ петеля в секундах: 5.0s (база) — после
     // поломки петаль исчезает и через это время возвращается на орбиту.
     // cd: 0 — аксессуары (eye/line/spike): никогда не ломаются, без перезарядки.
-    oval:       { hp: 8,   dmg: 4,    cd: 5.0, abl: 'Lifesteal', desc: 'Heals you 30% of the damage it deals.' },
-    thorns:     { hp: 5,   dmg: 7,    cd: 5.0, abl: 'Thorns',    desc: 'Reflects 40% of the mob\'s hit back at it.' },
+    oval:       { hp: 8,   dmg: 4.5,  cd: 4.0, abl: 'Lifesteal', desc: 'Heals you 30% of the damage it deals.' },
+    thorns:     { hp: 5,   dmg: 7.5,  cd: 4.5, abl: 'Thorns',    desc: 'Reflects 40% of the mob\'s hit back at it.' },
     rock:       { hp: 14,  dmg: 2.5,  cd: 5.0, abl: 'Armor',     desc: 'Takes 50% less wear from mob hits.' },
     ball:       { hp: 6,   dmg: 3,    cd: 5.0, abl: 'Bomb',      desc: 'On hit: explodes for 50% DMG to nearby mobs (radius 80).' },
     orb:        { hp: 7,   dmg: 4,    cd: 5.0, abl: 'Regen',     desc: 'Passive. Regen 3% MaxHP/s on orbit. Only the best orb counts.' },
-    pebble:     { hp: 9,   dmg: 3,    cd: 5.0, abl: 'Sling',     desc: 'Very fast hits with a strong knockback.' },
-    shard:      { hp: 5.5, dmg: 9,    cd: 5.0, abl: 'Wound',     desc: 'On hit: 1s wound for 50% DMG/s.' },
+    pebble:     { hp: 9,   dmg: 3,    cd: 3.0, abl: 'Sling',     desc: 'Very fast hits with a strong knockback.' },
+    shard:      { hp: 5.5, dmg: 10,   cd: 4.5, abl: 'Wound',     desc: 'On hit: 1s wound for 50% DMG/s.' },
     cog:        { hp: 10,  dmg: 4.5,  cd: 5.0, abl: 'Overdrive', desc: 'Passive. Speeds up all petal recharges (stacks).' },
     whirl:      { hp: 10,  dmg: 4.5,  cd: 5.0, abl: 'Spin',      desc: 'Passive. Orbit spin +30%, +10%/rarity (stacks).' },
-    blade:      { hp: 5,   dmg: 10,   cd: 5.0, abl: 'Missile',   desc: 'Space: fires a piercing missile (flies out, returns in 1.2s).' },
-    viper:      { hp: 1,   dmg: 8,    cd: 5.0, abl: 'Poison',    desc: 'On hit: poison 3.5s, ×10 DMG/s. One poison per mob (no stack). Weak (×0.35) on higher tiers.' },
+    blade:      { hp: 8,   dmg: 11,   cd: 5.0, abl: 'Missile',   desc: 'Space: fires a piercing missile (flies out, returns in 1.2s).' },
+    viper:      { hp: 1,   dmg: 8,    cd: 7.5, abl: 'Poison',    desc: 'On hit: poison 3.5s, ×10 DMG/s. One poison per mob (no stack). Weak (×0.35) on higher tiers.' },
     cube:       { hp: 15,  dmg: 2,    cd: 5.0, abl: 'Push',      desc: 'Heavy knockback on every hit, low damage.' },
     bulwark:    { hp: 26,  dmg: 2,    cd: 5.0, abl: 'MaxHP',     desc: 'Passive. +80% base MaxHP ×rarity mult per petal (stacks).' },
     penta:      { hp: 9,   dmg: 6.5,  cd: 5.0, abl: 'Swift',     desc: 'Passive. +10% move speed, +2%/rarity (stacks).' },
@@ -6122,10 +5713,38 @@ const PETAL_DB = {
     eye:        { hp: 14,  dmg: 0,    cd: 0,    abl: 'Eye',       desc: 'Accessory. Widens the petal orbit +10%/rarity (never breaks).' },
     spike:      { hp: 10,  dmg: 0,    cd: 0,    abl: 'Body',      desc: 'Accessory. Body contact deals 20×rarity damage per spike (0.5s tick, stacks).' },
     rhombus:    { hp: 14,  dmg: 6,    cd: 5.0,  abl: 'Slow',      desc: 'On hit: slows the mob 45% for 3s (same or lower rarity only).' },
-    twirl:      { hp: 10,  dmg: 6,    cd: 5.0,  abl: 'Reverse',   desc: 'Reverses the orbit rotation direction (each petal flips it back).' },
+    twirl:      { hp: 10,  dmg: 6,    cd: 6.0,  abl: 'Reverse',   desc: 'Reverses the orbit rotation direction (each petal flips it back).' },
+    // Новые ДПС-петали (порт worlddata, этап 3): cd = 5.0с × множитель вида.
+    volt:       { hp: 4,   dmg: 11,   cd: 5.0,  abl: 'Volt',       desc: 'Pure DPS petal (drops from Comet).' },
+    jag:        { hp: 3.5, dmg: 9.5,  cd: 3.5,  abl: 'Jag',        desc: 'Fast jagged DPS (drops from Zigzag).' },
+    anvil:      { hp: 12,  dmg: 10,   cd: 6.5,  abl: 'Anvil',      desc: 'Heavy DPS tank (drops from Quarry).' },
+    lance:      { hp: 4,   dmg: 13,   cd: 5.0,  abl: 'Lance',      desc: 'Glass cannon: highest raw damage.' },
+    saw:        { hp: 6.5, dmg: 9.5,  cd: 4.5,  abl: 'Saw',        desc: 'Balanced DPS.' },
+    flare:      { hp: 9,   dmg: 8.5,  cd: 5.0,  abl: 'Flare',      desc: 'Durable DPS for long fights.' },
+    piercer:    { hp: 4,   dmg: 12,   cd: 5.0,  abl: 'Piercer',    desc: 'Sharp wedge, high burst (drops from Arrowhead).' },
+    wingblade:  { hp: 5,   dmg: 10,   cd: 4.0,  abl: 'Wingblade',  desc: 'Fast flying shard (drops from Shardwing).' },
+    rivet:      { hp: 20,  dmg: 3,    cd: 5.0,  abl: 'Armor',      desc: 'Armored plate, very durable (drops from Frame).' },
+    tail:       { hp: 6,   dmg: 7,    cd: 3.5,  abl: 'Push',       desc: 'Whip tail with knockback (drops from Kite).' },
+    trap:       { hp: 10,  dmg: 0,    cd: 6.0,  abl: 'Trap',       desc: 'Soulbound capture gift. Not craftable, not absorbable.' },
+    yang:       { hp: 1,   dmg: 0,    cd: 0,    abl: 'Token',      desc: 'Story token. Never fights, never breaks.' },
+    ying:       { hp: 1,   dmg: 0,    cd: 0,    abl: 'Token',      desc: 'Story token. Never fights, never breaks.' },
+    yinyang:    { hp: 1,   dmg: 0,    cd: 0,    abl: 'Token',      desc: 'Story token. Never fights, never breaks.' },
+    nexus:      { hp: 10,  dmg: 0,    cd: 0,    abl: 'Summon',     desc: 'Admin petal: summons a friendly Nexus.' },
 };
 
 const petalTipEl = document.getElementById('petalTip');
+// Грейды (порт server/pot.go): лестница UNIQUE..PARAGON, подпись по Pot.
+const GRADE_PCT = [100, 110, 125, 150, 175, 200];
+const GRADE_NAME = ['', 'UNIQUE', 'SUPERB', 'PRISTINE', 'MYTHIC', 'PARAGON'];
+function gradeLabelOf(pot) {
+    const p = (pot == null || pot < 100) ? 100 : pot;
+    let best = 0, bd = -1;
+    for (let i = 0; i < GRADE_PCT.length; i++) {
+        let d = Math.abs(p - GRADE_PCT[i]);
+        if (bd < 0 || d < bd) { best = i; bd = d; }
+    }
+    return best > 0 ? GRADE_NAME[best] + ' ×' + GRADE_PCT[best] + '%' : '';
+}
 function petalTipHTML(def) {
     const kind = def.kind || 'oval';
     const rar = def.rarity || 0;
@@ -6135,14 +5754,19 @@ function petalTipHTML(def) {
     const hp = Math.round((def.hp != null ? def.hp : db.hp * mult) * 10) / 10;
     const dmg = Math.round((def.dmg != null ? def.dmg : db.dmg * mult) * 10) / 10;
     // Recharge = время полной ПЕРЕЗАРЯДКИ петеля в секундах: после поломки
-    // петаль исчезает и через это время возвращается на орбиту. База — 5.0s
-    // (аксессуары никогда не ломаются и не перезаряжаются).
+    // петаль исчезает и через это время возвращается на орбиту. База — 5.0с
+    // × множитель вида (порт родителя; аксессуары никогда не ломаются).
     let cdTxt = 'None (never breaks)';
-    if (db.cd > 0) cdTxt = '5s';
+    if (db.cd > 0) cdTxt = db.cd + 's';
+    // Грейд (Pot) и провенанс крафта — серверные поля, клиент только показывает.
+    const grade = gradeLabelOf(def.pot);
+    const crafted = def.craftedBy ? '<div class="t-desc">Crafted by ' + escapeHtml(def.craftedBy) + '</div>' : '';
     return '<div class="t-name" style="color:' + col + '">' + escapeHtml(def.name || kindName(kind)) + '</div>' +
         '<div class="t-rar">Rarity: <b style="color:' + col + '">' + rarityName(rar) + '</b> (' + rar + ')</div>' +
+        (grade ? '<div class="t-abl" style="color:#ffd54f">★ ' + grade + '</div>' : '') +
         (db.abl ? '<div class="t-abl">✦ ' + db.abl + '</div><div class="t-desc">' + escapeHtml(db.desc) + '</div>' : '') +
-        '<div class="t-stats">HP: <b>' + hp + '</b> · DMG: <b>' + dmg + '</b> · Recharge: <b>' + cdTxt + '</b></div>';
+        '<div class="t-stats">HP: <b>' + hp + '</b> · DMG: <b>' + dmg + '</b> · Recharge: <b>' + cdTxt + '</b></div>' +
+        crafted;
 }
 function showPetalTip(def, ev) {
     if (!petalTipEl) return;
