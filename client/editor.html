@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wall Editor — Shaper</title>
+<style>
+    * { box-sizing: border-box; }
+    html, body, * {
+        -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none;
+        user-select: none; -webkit-user-drag: none;
+    }
+    input, textarea { -webkit-user-select: text; -moz-user-select: text; -ms-user-select: text; user-select: text; }
+    body {
+        margin: 0; padding: 16px;
+        background: #0b0f16; color: #dfe6ee;
+        font-family: Arial, sans-serif;
+    }
+    h1 { margin: 0 0 4px; font-size: 18px; color: #7dffb0; }
+    .sub { color: #8a93a6; font-size: 12px; margin-bottom: 12px; }
+    a { color: #7dffb0; }
+    .layout { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-start; }
+    .panel {
+        background: #10151f; border: 1px solid #1d2733; border-radius: 8px;
+        padding: 12px; min-width: 300px;
+    }
+    #zones { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+    .zbtn {
+        border: 1px solid #1d2733; background: #181f2b; color: #dfe6ee;
+        padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 12px;
+    }
+    .zbtn.active { outline: 2px solid #7dffb0; }
+    canvas {
+        background: #0d121b; border: 1px solid #1d2733; border-radius: 8px;
+        width: 100%; max-width: 800px; image-rendering: auto; touch-action: none;
+    }
+    .row { display: flex; gap: 8px; align-items: center; margin: 6px 0; flex-wrap: wrap; }
+    label { font-size: 11px; color: #8a93a6; min-width: 60px; }
+    input[type=number], input[type=text], input[type=password], textarea {
+        background: #0d121b; border: 1px solid #1d2733; color: #dfe6ee;
+        border-radius: 5px; padding: 5px 7px; width: 90px; font-size: 12px;
+    }
+    textarea { width: 100%; min-height: 90px; resize: vertical; font-size: 11px; }
+    button {
+        background: #223044; color: #dfe6ee; border: 1px solid #31435c;
+        border-radius: 6px; padding: 6px 12px; cursor: pointer; font-size: 12px;
+    }
+    button:hover { background: #2a3c55; }
+    button.warn { background: #4a2430; border-color: #6e3444; }
+    button.ok { background: #1f4a35; border-color: #2f6b4c; }
+    button:disabled { opacity: 0.4; cursor: default; }
+    .legend { font-size: 11px; color: #8a93a6; margin-top: 8px; line-height: 1.6; }
+    .sw { display: inline-block; width: 12px; height: 12px; border-radius: 2px; vertical-align: middle; margin-right: 4px; }
+    #status { font-size: 12px; color: #ff9c6a; margin-top: 8px; min-height: 16px; }
+    #jsonPre { white-space: pre-wrap; word-break: break-word; font-family: monospace; font-size: 11px; color: #9fb2c8; max-height: 160px; overflow: auto; }
+</style>
+</head>
+<body>
+<h1>Zone Wall Editor</h1>
+<div class="sub">
+    Walls block both players and mobs — so you set each zone's "mob zone" by hand.
+    Zone local coordinates: x from 0 to 8000, y from 0 to 5000 (y grows downward).
+    At the bottom of a zone is the Safe Zone (light band), above it a divider wall with a gap in the center.
+    Red rectangles are your walls. <a href="/" target="_blank">Game →</a>
+</div>
+
+<div class="layout">
+    <div class="panel" style="flex:1; min-width:420px;">
+        <div id="zones"></div>
+        <canvas id="cv" width="800" height="500"></canvas>
+        <div class="legend">
+            <span class="sw" style="background:#2f6b4c;"></span>Safe Zone (player won't die)
+            &nbsp;&nbsp;<span class="sw" style="background:#31435c;"></span>divider wall (gap in center)
+            &nbsp;&nbsp;<span class="sw" style="background:#c0504a;"></span>your wall — blocks everyone
+            <br>Left-click on empty space — draw a wall · click a wall — select/move ·
+            corner (small square) — resize · Del — delete selected.
+        </div>
+        <div id="status"></div>
+    </div>
+
+    <div class="panel">
+        <div class="row"><b>Selected wall</b></div>
+        <div class="row">
+            <label>X</label><input type="number" id="fX" min="0" max="8000" step="100">
+            <label>Y</label><input type="number" id="fY" min="0" max="5000" step="100">
+        </div>
+        <div class="row">
+            <label>W</label><input type="number" id="fW" min="40" max="8000" step="100">
+            <label>H</label><input type="number" id="fH" min="40" max="5000" step="100">
+        </div>
+        <div class="row">
+            <button id="btnApply" disabled>Apply to wall</button>
+            <button id="btnDel" class="warn" disabled>Delete wall</button>
+        </div>
+        <div class="row" style="margin-top:10px;">
+            <button id="btnClear" class="warn">Clear zone</button>
+            <label style="min-width:0;">Grid 100</label><input type="checkbox" id="snap" checked>
+        </div>
+
+        <div class="row" style="margin-top:12px;"><b>Save (admin only)</b></div>
+        <div class="row">
+            <label>Nick</label><input type="text" id="aNick">
+            <label>Password</label><input type="password" id="aPass">
+            <button id="btnLogin">Sign in</button>
+        </div>
+        <div class="row">or paste the admin token</div>
+        <div class="row"><input type="text" id="aToken" style="width:100%;"></div>
+        <button id="btnSave" class="ok" style="width:100%;">SAVE walls (walls.json)</button>
+
+        <div class="row" style="margin-top:12px;"><b>Current layout</b></div>
+        <pre id="jsonPre"></pre>
+    </div>
+</div>
+
+<script src="js/editor.js?v=105"></script>
+</body>
+</html>

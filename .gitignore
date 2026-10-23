@@ -1,0 +1,24 @@
+# Binaries
+server/server.exe
+server/server_wave.exe
+*.exe
+
+# Logs
+*.log
+
+# TLS keys
+cert.pem
+key.pem
+token_secret.key
+
+# OS
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# Temp
+*.tmp
+*.bak
+
+# Unrelated content living in the project dir
+pig friends epic/

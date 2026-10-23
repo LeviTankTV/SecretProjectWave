@@ -1,0 +1,1873 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SecretProjectWave — Wave Survival</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        /* Запрет выделения текста/петалей ВЕЗДЕ (включая shift+click-перетаскивание
+           и выделение перетаскиваемых игровых элементов). Инпуты остаются выбираемыми. */
+        html, body, #app, canvas, .screen, .msg, .chat-toast, .craft-petal-orb,
+        * { -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; -webkit-user-drag: none; }
+        input, textarea, [contenteditable] { -webkit-user-select: text; -moz-user-select: text; -ms-user-select: text; user-select: text; }
+        body { background: #0f1115; color: #eee; font-family: sans-serif; overflow: hidden; }
+
+        /* Общие стили экранов авторизации и меню */
+        .screen {
+            position: fixed; inset: 0; z-index: 30;
+            display: none; flex-direction: column; align-items: center; justify-content: center;
+            gap: 16px; background: rgba(15,17,21,0.97);
+        }
+        .screen.active { display: flex; }
+
+        /* Экран загрузки: плавный переход на чёрный при входе/выходе из игры */
+        #loading {
+            position: fixed; inset: 0; z-index: 60;
+            display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
+            background: #000; opacity: 0; pointer-events: none;
+            transition: opacity 0.35s ease;
+        }
+        #loading.show { opacity: 1; pointer-events: auto; }
+        #loading .loader-spinner {
+            width: 46px; height: 46px; border-radius: 50%;
+            border: 4px solid rgba(255,255,255,0.15); border-top-color: #7be0ff;
+            animation: spin 1s linear infinite;
+        }
+        #loading .loader-text { color: #cfd6e4; font-size: 18px; letter-spacing: 2px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .screen h1 { font-size: 42px; color: #7be0ff; letter-spacing: 1px; }
+        .screen h2 { font-size: 26px; color: #cfd6e4; margin-bottom: 8px; }
+        .screen input[type=text], .screen input[type=password] {
+            width: 280px; padding: 12px; font-size: 18px; text-align: center;
+            border: 2px solid #333; border-radius: 8px; background: #1a1e27; color: #fff;
+            outline: none;
+        }
+        .screen input:focus { border-color: #7be0ff; }
+        .screen button {
+            padding: 14px 44px; font-size: 20px; cursor: pointer;
+            background: #2fbf71; color: #fff; border: none; border-radius: 8px;
+        }
+        .screen button:hover { background: #37d380; }
+        .screen .hint { font-size: 13px; color: #888; }
+        .screen .switch-link {
+            font-size: 14px; color: #7be0ff; cursor: pointer; margin-top: 4px;
+        }
+        .screen .switch-link:hover { text-decoration: underline; }
+        /* Меню: раскладка по центру */
+        #menu { flex-direction: column; align-items: center; justify-content: center; }
+
+        /* Хотбар в меню (по центру) */
+        #menuHotbarWrap {
+            display: flex; flex-direction: column; gap: 8px; align-items: center; margin: 10px 0 0;
+        }
+        .menu-hotbar {
+            display: flex; gap: 6px;
+            padding: 8px; border-radius: 12px;
+            background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.12);
+            opacity: 0.5;
+        }
+        .menu-hotbar.active { opacity: 1; border-color: rgba(255,213,79,0.5); box-shadow: 0 0 12px rgba(255,213,79,0.2); }
+        #menuHotbarHint { font-size: 11px; color: #8a93a6; margin-top: 2px; }
+
+    /* Секции слева снизу (Shapes / Craft / Absorb): большие кнопки с иконками,
+       как внутриигровые круглые кнопки, но с подписью. */
+        .menuBigBtn {
+            position: fixed; left: 16px; z-index: 59;
+            display: flex; align-items: center; gap: 14px;
+            min-width: 210px; padding: 16px 22px; box-sizing: border-box;
+            font-size: 18px; font-weight: bold; letter-spacing: 0.5px;
+            border-radius: 16px; cursor: pointer;
+            box-shadow: 0 6px 18px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.08);
+            transition: filter 0.15s ease, transform 0.1s ease;
+        }
+        .menuBigBtn:hover { filter: brightness(1.18); transform: translateY(-1px); }
+        .menuBigBtn:active { transform: translateY(1px); }
+        .menuBigBtn svg { flex: 0 0 auto; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5)); }
+        .menuBigBtn .mb-label { display: block; }
+
+        /* Фигуры (инвентарь) */
+        #invBtn {
+            bottom: 16px;
+            color: #e8edf7; background: linear-gradient(180deg, #2c3e50, #1f2a38);
+            border: 1px solid rgba(255,255,255,0.22);
+        }
+
+        /* Крафт (над фигурами) */
+        #craftBtn {
+            bottom: 98px;
+            color: #ffd54f; background: linear-gradient(180deg, #3d3a1f, #2a2618);
+            border: 1px solid rgba(255,214,79,0.4);
+        }
+        #craftBtn.has-pending { border-color: #4caf50; color: #7ee38b; box-shadow: 0 0 16px rgba(76,175,80,0.5); }
+
+        /* Окно крафта — центрированная "плотня" (катушка) в стиле флopp */
+        #craftPanel {
+            position: fixed; left: 50%; top: 50%; transform: translate(-50%,-50%); z-index: 90;
+            display: none; width: 600px; padding: 18px;
+            background: radial-gradient(circle at 50% 0%, #1c2333 0%, #0c0f18 70%, #05060c 100%);
+            border: 1px solid rgba(255,214,79,0.4); border-radius: 20px;
+            box-shadow: 0 0 0 1px rgba(0,0,0,0.6), 0 18px 60px rgba(0,0,0,0.85),
+                        inset 0 0 60px rgba(255,214,79,0.05);
+        }
+        #craftPanel.open { display: block; animation: craftPop .18s ease-out; }
+        @keyframes craftPop { from { transform: translate(-50%,-50%) scale(.85); opacity: 0; } to { transform: translate(-50%,-50%) scale(1); opacity: 1; } }
+        #craftPanelTitle {
+            font-size: 16px; color: #ffd54f; letter-spacing: 2px; text-transform: uppercase;
+            text-shadow: 0 2px 6px rgba(0,0,0,0.6); margin-bottom: 4px; text-align: center;
+            padding-right: 40px; /* чтобы не пересекалось с кнопкой закрытия */
+            box-sizing: border-box;
+        }
+        #craftHint { font-size: 12px; color: #8a93a6; margin-bottom: 12px; text-align: center; }
+
+        #craftColumns { display: flex; gap: 18px; }
+        /* Левая колонка — катушка */
+        #craftWheelCol { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        #craftSpinner { position: relative; width: 190px; height: 190px; user-select: none; }
+        #craftSpinnerInner {
+            position: absolute; inset: 0; pointer-events: none;
+            background: radial-gradient(circle, rgba(20,26,40,0.55) 40%, rgba(8,10,16,0.85) 75%, transparent);
+            border: 3px solid rgba(255,214,79,0.55);
+            clip-path: circle(50%);
+        }
+        /* Полоса с петалем-орбами вращается отдельно (JS, ускорение до 5-й секунды).
+           background/обрезание остаются неподвижными. */
+        #craftWheelBand { position: absolute; inset: 0; transform: rotate(0deg); transform-origin: center; }
+        #craftWheelBand.spinning { padding: 0; }
+        /* Вспышка — сразу после стопа (провал/успех). */
+        #craftSpinnerInner.flash-fail { animation: craftPulseF .6s ease; }
+        @keyframes craftPulseF { 0% { border-color: #ff6b6b; } 100% { border-color: rgba(255,214,79,0.55); } }
+        #craftSpinnerInner.flash-ok { animation: craftPulseO .5s ease; }
+        @keyframes craftPulseO { 0% { border-color: #fff; box-shadow: 0 0 26px rgba(255,214,79,0.9); } 100% { border-color: rgba(255,214,79,0.55); } }
+
+        #craftHub {
+            position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%);
+            width: 64px; height: 64px; border-radius: 50%; z-index: 5;
+            background: radial-gradient(circle, #ffe27a 0%, #ffb300 60%, #8a6a00 100%);
+            border: 2px solid #c9a227; box-shadow: 0 0 18px rgba(255,214,79,0.7), inset 0 0 12px rgba(0,0,0,0.4);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+        }
+        #craftCenterIcon { width: 26px; height: 26px; }
+        #craftCenterCount { font-size: 12px; font-weight: bold; color: #1a1206; text-shadow: 0 0 4px rgba(255,255,255,0.4); line-height: 1; }
+        /* Успешный крафт: петаль и количество в центре ЧУТЬ БОЛЬШЕ, золотое свечение. */
+        #craftCenterIcon.won { width: 36px; height: 36px; filter: drop-shadow(0 0 8px rgba(255,214,79,0.95)); }
+        #craftCenterCount.won { font-size: 15px; color: #ffe27a; text-shadow: 0 0 6px rgba(255,183,0,0.9); }
+        /* Масштабный "pop" при появлении результата в центре. */
+        #craftCenterIcon.pop { animation: centerPop .3s ease-out; }
+        @keyframes centerPop { from { transform: scale(.4); } to { transform: scale(1); } }
+        #craftPileCount {
+            font-size: 15px; font-weight: bold; color: #ffd54f;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.7);
+        }
+        #craftPileInfo { font-size: 12px; color: #dfe3ec; }
+        #craftChance { font-size: 13px; color: #ffd54f; margin-top: 2px; }
+        #craftResetBtn {
+            font-size: 11px; padding: 3px 12px; color: #dfe3ec; cursor: pointer;
+            background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 8px;
+        }
+        #craftResetBtn:disabled { opacity: .4; cursor: not-allowed; }
+
+        /* Правая колонка — инвентарь крафта */
+        #craftInvCol {
+            flex: 1.15; background: rgba(8,10,16,0.6); border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 12px; padding: 10px; max-height: 300px; overflow-y: auto;
+        }
+        /* Скроллбар инвентаря крафта — под золото тематики меню. */
+        #craftInvCol::-webkit-scrollbar { width: 8px; }
+        #craftInvCol::-webkit-scrollbar-track {
+            background: rgba(255,214,79,0.07); border-radius: 6px;
+        }
+        #craftInvCol::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, #ffe27a, #ffb300);
+            border-radius: 6px; box-shadow: inset 0 1px 2px rgba(255,255,255,0.35);
+        }
+        #craftInvCol::-webkit-scrollbar-thumb:hover { background: linear-gradient(180deg, #fff3c4, #ffc93c); }
+        #craftInvColTitle { font-size: 11px; color: #8a93a6; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; }
+        #craftInventory {
+            display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-start; min-height: 40px;
+        }
+
+        /* Общие элементы окна */
+        #craftBtnInner {
+            width: 100%; padding: 12px; font-size: 15px; font-weight: bold; cursor: pointer;
+            border-radius: 12px; color: #1a1206;
+            background: linear-gradient(180deg, #ffe27a, #ffb300); border: 1px solid #c9a227;
+            text-shadow: 0 1px 2px rgba(255,255,255,0.3); box-shadow: 0 4px 14px rgba(255,214,79,0.4);
+        }
+        #craftBtnInner:disabled { opacity: .45; cursor: not-allowed; filter: grayscale(.6); }
+        #craftResult { margin-top: 10px; font-size: 13px; color: #dfe3ec; text-align: center; min-height: 18px; }
+        #craftCloseBtn {
+            position: absolute; top: 12px; right: 14px; width: 28px; height: 28px; border-radius: 50%;
+            color: #dfe3ec; background: rgba(255,255,255,0.10); border: 1px solid rgba(255,255,255,0.35);
+            cursor: pointer; font-size: 15px; line-height: 1;
+            display: flex; align-items: center; justify-content: center;
+            padding: 0; box-sizing: border-box; z-index: 1;
+        }
+        #craftCloseBtn:hover { background: rgba(255,80,80,0.5); color: #fff; }
+
+        /* Катушка: петали по кругу */
+        .craft-petal-orb {
+            position: absolute; width: 30px; height: 34px; pointer-events: none;
+            margin: -15px 0 0 -15px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.6));
+        }
+        .craft-petal-orb.size9 { width: 40px; height: 44px; margin: -20px 0 0 -20px; }
+        .craft-slot {
+            position: relative; width: 44px; height: 56px; cursor: pointer;
+            background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.18);
+            border-radius: 9px; display: flex; flex-direction: column; align-items: center;
+            justify-content: center; box-sizing: border-box;
+        }
+        .craft-slot.pickable { border-color: rgba(255,214,79,0.6); box-shadow: 0 0 10px rgba(255,214,79,0.35); }
+        .craft-slot .petal-shape { width: 26px; height: 26px; pointer-events: none; }
+        .craft-slot .inv-name { position: absolute; bottom: 1px; left: 0; right: 0; font-size: 8px; color: #dfe3ec; text-align: center; line-height: 1; }
+        .craft-slot .cat-count { /* переиспользуем счётчик */ }
+        #craftPileHide { display: none; }
+
+        /* Кнопка Absorb (над кнопкой крафта) */
+        #absorbBtn {
+            bottom: 180px;
+            color: #d9a5ff; background: linear-gradient(180deg, #3a2560, #241540);
+            border: 1px solid rgba(178,140,255,0.45);
+        }
+
+        /* Окно Absorb — та же «плотня», что и крафт, но уничтожение за XP */
+        #absorbPanel {
+            position: fixed; left: 50%; top: 50%; transform: translate(-50%,-50%); z-index: 91;
+            display: none; width: 560px; padding: 18px;
+            background: radial-gradient(circle at 50% 0%, #241b33 0%, #120e1c 70%, #080610 100%);
+            border: 1px solid rgba(178,140,255,0.45); border-radius: 20px;
+            box-shadow: 0 0 0 1px rgba(0,0,0,0.6), 0 18px 60px rgba(0,0,0,0.85),
+                        inset 0 0 60px rgba(178,140,255,0.05);
+        }
+        #absorbPanel.open { display: block; animation: craftPop .18s ease-out; }
+        #absorbPanel { max-height: 92vh; overflow-y: auto; }
+        #absorbPileBox::-webkit-scrollbar, #absorbInvCol::-webkit-scrollbar { width: 6px; }
+        #absorbPileBox::-webkit-scrollbar-thumb, #absorbInvCol::-webkit-scrollbar-thumb {
+            background: rgba(178,140,255,0.4); border-radius: 4px;
+        }
+        #absorbPanelTitle {
+            font-size: 16px; color: #d9a5ff; letter-spacing: 2px; text-transform: uppercase;
+            text-shadow: 0 2px 6px rgba(0,0,0,0.6); margin-bottom: 4px; text-align: center;
+            padding-right: 40px; box-sizing: border-box;
+        }
+        #absorbHint { font-size: 12px; color: #8a93a6; margin-bottom: 12px; text-align: center; }
+        #absorbColumns { display: flex; gap: 18px; }
+        #absorbPileCol { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+        #absorbPileBox {
+            width: 100%; min-height: 100px; max-height: 150px; overflow-y: auto;
+            border: 2px dashed rgba(178,140,255,0.5); border-radius: 12px;
+            background: rgba(8,10,16,0.5); display: flex; flex-wrap: wrap; gap: 6px;
+            align-content: flex-start; padding: 8px; box-sizing: border-box;
+        }
+        #absorbPileBox .pile-empty { width: 100%; text-align: center; color: #7d7f8a; font-size: 11px; padding-top: 40px; }
+        #absorbCount { font-size: 13px; color: #dfe3ec; font-weight: bold; }
+        #absorbInfo { font-size: 12px; color: #8a93a6; }
+        #absorbResetBtn {
+            padding: 8px 16px; font-size: 13px; border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 8px; background: rgba(255,255,255,0.08); color: #dfe3ec; cursor: pointer;
+        }
+        #absorbResetBtn:disabled { opacity: .4; cursor: not-allowed; }
+        #absorbResetBtn:hover { background: rgba(255,80,80,0.4); color: #fff; }
+        #absorbInvCol {
+            flex: 1.15; background: rgba(8,10,16,0.6); border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 12px; padding: 10px; max-height: 300px; overflow-y: auto;
+        }
+        #absorbInvTitle { font-size: 11px; color: #8a93a6; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; }
+        #absorbInventory { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-start; min-height: 40px; }
+        #absorbXpPreview {
+            margin-top: 12px; text-align: center; font-size: 16px; font-weight: bold; color: #ffd54f;
+        }
+        #absorbCompare { text-align: center; font-size: 12px; color: #b9c0cf; margin-top: 4px; min-height: 16px; }
+        #absorbBtnInner {
+            width: 100%; padding: 12px; font-size: 15px; font-weight: bold; cursor: pointer;
+            margin-top: 10px; border-radius: 12px; color: #fff;
+            background: linear-gradient(180deg, #9b6bff, #6b3ddb); border: 1px solid #8a5cff;
+            box-shadow: 0 4px 14px rgba(155,107,255,0.4);
+        }
+        #absorbBtnInner:disabled { opacity: .5; cursor: not-allowed; filter: grayscale(.6); }
+        #absorbResult { margin-top: 8px; font-size: 13px; color: #dfe3ec; text-align: center; min-height: 18px; }
+        #absorbCloseBtn {
+            position: absolute; top: 12px; right: 14px; width: 28px; height: 28px; border-radius: 50%;
+            color: #dfe3ec; background: rgba(255,255,255,0.10); border: 1px solid rgba(255,255,255,0.35);
+            cursor: pointer; font-size: 15px; line-height: 1;
+            display: flex; align-items: center; justify-content: center; padding: 0; box-sizing: border-box; z-index: 1;
+        }
+        #absorbCloseBtn:hover { background: rgba(255,80,80,0.5); color: #fff; }
+
+        /* Панель инвентаря (справа снизу, лист) */
+        #invPanel {
+            position: fixed; right: 16px; bottom: 60px; z-index: 55; display: none;
+            max-width: 320px; max-height: 60vh; overflow-y: auto; padding: 12px;
+            background: rgba(10,12,18,0.92); border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 14px; box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+        }
+        #invPanelTitle {
+            font-size: 13px; color: #ffd54f; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px;
+        }
+        #invSearch {
+            width: 100%; box-sizing: border-box; margin-bottom: 8px;
+            border: 1px solid rgba(255,255,255,0.15); border-radius: 8px;
+            padding: 6px 9px; background: rgba(255,255,255,0.05);
+            color: #e6eaf2; font-size: 12px; outline: none;
+        }
+        #invSearch::placeholder { color: #7b8494; }
+        #invPanel.open { display: block; }
+        #menuInventory {
+            display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-start;
+            max-width: 320px; min-height: 40px;
+        }
+        .inv-slot {
+            width: 42px; height: 54px; position: relative; cursor: pointer;
+            background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 8px;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+        }
+        /* Глобальное «* { -webkit-user-drag: none }» ломает HTML5 drag&drop в
+           Chromium: без этого инвентарь/хотбар меню нельзя перетащить мышкой. */
+        .inv-slot[draggable="true"], .inv-slot.dragging,
+        #menuHotbarBar .inv-slot, #gameHotbarBar .inv-slot {
+            -webkit-user-drag: element;
+        }
+        .inv-slot .petal-shape { width: 26px; height: 26px; }
+        .inv-slot .inv-name {
+            position: absolute; bottom: 2px; left: 0; right: 0;
+            font-size: 8px; color: #dfe3ec; text-align: center; line-height: 1;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .inv-empty {
+            width: 42px; height: 54px; border-radius: 8px;
+            background: rgba(255,255,255,0.03); border: 1px dashed rgba(255,255,255,0.1);
+        }
+        .hotbar-slot { background: rgba(255,255,255,0.05); }
+        .inv-slot.hotbar-slot.empty-slot {
+            background: rgba(255,255,255,0.03);
+            border: 1px dashed rgba(255,255,255,0.14);
+        }
+        .inv-slot.dragging { opacity: 0.4; }
+        /* Счётчик количества в стаке инвентаря (вверху справа, не мешает названию) */
+        .cat-count {
+            position: absolute; top: 2px; right: 2px; z-index: 3;
+            min-width: 14px; padding: 0 3px; font-size: 9px; font-weight: bold;
+            color: #fff; background: rgba(0,0,0,0.72); border-radius: 8px;
+            text-align: center; line-height: 1; text-shadow: 0 1px 2px #000;
+        }
+
+        /* XP-полоска в меню (справа снизу) */
+        #menuXpBar {
+            position: relative; width: 100%; height: 30px; padding: 3px; box-sizing: border-box;
+            background: linear-gradient(180deg, rgba(0,0,0,0.7), rgba(0,0,0,0.5));
+            border: 1px solid rgba(255,214,79,0.35); border-radius: 16px;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.5), inset 0 0 6px rgba(0,0,0,0.6);
+        }
+        #menuXpFill {
+            height: 100%; width: 0%; border-radius: 11px;
+            background: linear-gradient(90deg, #ffd54f 0%, #ffb300 60%, #ff8f00 100%);
+            box-shadow: inset 0 2px 5px rgba(255,255,255,0.45),
+                        inset 0 -3px 6px rgba(0,0,0,0.3),
+                        0 0 14px rgba(255,213,79,0.7);
+            transition: width 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        #menuXpFill::after {
+            content: ''; position: absolute; inset: 0; pointer-events: none;
+            background: linear-gradient(180deg, rgba(255,255,255,0.45) 0%, rgba(255,255,255,0) 50%);
+            border-radius: 11px;
+        }
+        #menuLevel {
+            position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+            font-size: 13px; font-weight: bold; letter-spacing: 0.5px; color: #fff;
+            text-shadow: 0 1px 3px #000, 0 0 6px rgba(0,0,0,0.8); z-index: 2;
+        }
+
+        /* Ошибка авторизации */
+        #authError {
+            color: #ff6b6b; font-size: 14px; min-height: 18px; text-align: center;
+        }
+
+        /* Выбор цвета круга */
+        .color-row { display: flex; gap: 10px; }
+        .color-dot {
+            width: 36px; height: 36px; border-radius: 50%; cursor: pointer;
+            border: 3px solid transparent;
+        }
+        .color-dot.selected { border-color: #ffffff; transform: scale(1.15); }
+
+        /* Профиль в главном меню (сверху слева): как игровой HUD,
+           но вместо HP — «Logged in as» + кнопка Log Out. */
+        #menuProfile {
+            position: fixed; top: 16px; left: 16px; z-index: 40;
+            display: flex; flex-direction: column; gap: 10px; width: 344px;
+        }
+        #menuProfileCard {
+            display: flex; align-items: center; gap: 12px;
+            padding: 10px 14px 10px 10px; box-sizing: border-box;
+            background: linear-gradient(180deg, rgba(0,0,0,0.72), rgba(0,0,0,0.55));
+            border: 1px solid rgba(255,255,255,0.18); border-radius: 18px;
+            box-shadow: 0 4px 18px rgba(0,0,0,0.5), inset 0 0 6px rgba(0,0,0,0.5);
+        }
+        /* Аватар: цвет меняется плавно (transition на border/glow и фон). */
+        #menuAvatar {
+            position: relative; width: 64px; height: 64px; border-radius: 50%;
+            flex: 0 0 auto; overflow: hidden;
+            border: 3px solid #7fb2ff;
+            box-shadow: 0 0 14px rgba(127,178,255,0.7), inset 0 2px 6px rgba(255,255,255,0.3);
+            transition: border-color 0.45s ease, box-shadow 0.45s ease;
+        }
+        #menuAvatarFill {
+            position: absolute; inset: 0; border-radius: 50%;
+            background-color: #7fb2ff;
+            transition: background-color 0.45s ease;
+        }
+        #menuAvatar::after {
+            content: ''; position: absolute; inset: 0; border-radius: 50%;
+            background: radial-gradient(circle at 35% 30%, rgba(255,255,255,0.45), rgba(255,255,255,0) 60%);
+            pointer-events: none;
+        }
+        #menuProfileMain { display: flex; flex-direction: column; gap: 6px; min-width: 0; flex: 1; }
+        #menuProfileNick {
+            font-size: 19px; font-weight: bold; color: #fff;
+            text-shadow: 0 2px 6px rgba(0,0,0,0.6);
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        #menuProfileSub { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        #menuProfileSub .logged-as {
+            font-size: 12.5px; color: #9aa5b8;
+            white-space: nowrap;
+        }
+        #menuProfileSub .logged-as b { color: #dfe6f2; font-weight: 600; }
+        #logoutBtn {
+            display: inline-flex; align-items: center;
+            padding: 5px 12px; font-size: 12px; font-weight: bold; letter-spacing: 0.4px;
+            color: #ff9aa5; background: linear-gradient(180deg, #4a1f2b, #331520);
+            border: 1px solid rgba(255,120,130,0.45); border-radius: 9px; cursor: pointer;
+            transition: filter 0.15s ease, transform 0.1s ease;
+        }
+        #logoutBtn:hover { filter: brightness(1.25); transform: translateY(-1px); }
+        #logoutBtn:active { transform: translateY(1px); }
+
+        /* Индикатор игрока: кружок-аватар + ник + HP-полоска (сверху слева) */
+        #playerHud {
+            position: fixed; top: 16px; left: 16px; z-index: 22;
+            display: flex; align-items: center; gap: 10px;
+            padding: 8px 12px 8px 8px;
+            background: linear-gradient(180deg, rgba(0,0,0,0.72), rgba(0,0,0,0.55));
+            border: 1px solid rgba(255,255,255,0.18); border-radius: 16px;
+            box-shadow: 0 4px 18px rgba(0,0,0,0.5), inset 0 0 6px rgba(0,0,0,0.5);
+        }
+        #playerAvatar {
+            width: 60px; height: 60px; border-radius: 50%; flex: 0 0 auto;
+            background: radial-gradient(circle at 35% 30%, rgba(255,255,255,0.35), rgba(255,255,255,0) 60%), linear-gradient(135deg, rgba(120,180,255,0.55), rgba(60,90,160,0.9));
+            border: 2px solid rgba(255,255,255,0.5);
+            box-shadow: 0 0 12px rgba(120,180,255,0.6), inset 0 2px 6px rgba(255,255,255,0.3);
+            display: flex; align-items: center; justify-content: center;
+        }
+        #playerAvatarDot {
+            width: 26px; height: 26px; border-radius: 50%;
+            background: radial-gradient(circle at 35% 30%, #ffffff, #8fd0ff);
+            box-shadow: 0 0 8px rgba(143,208,255,0.9);
+        }
+        #playerInfo { display: flex; flex-direction: column; gap: 5px; min-width: 240px; }
+        #playerNick {
+            font-size: 18px; font-weight: bold; color: #fff; letter-spacing: 0.3px;
+            text-shadow: 0 1px 2px #000;
+        }
+
+        #shieldBar {
+            position: relative; width: 240px; height: 11px; padding: 1px;
+            margin-bottom: 3px;
+            background: rgba(0,0,0,0.55);
+            border: 1px solid rgba(120,180,255,0.25); border-radius: 7px;
+            box-shadow: inset 0 0 4px rgba(0,0,0,0.7);
+        }
+        #shieldFill {
+            height: 100%; width: 0%;
+            background: linear-gradient(90deg, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0) 30%, #4a9bff 60%, #7fd0ff 100%);
+            box-shadow: inset 0 2px 5px rgba(255,255,255,0.3), inset 0 -3px 6px rgba(0,0,0,0.3), 0 0 10px rgba(74,155,255,0.5);
+            transition: width 0.18s cubic-bezier(0.22, 1, 0.36, 1);
+            border-radius: 5px;
+        }
+
+        #hpBar {
+            position: relative; width: 240px; height: 20px; padding: 2px;
+            background: rgba(0,0,0,0.55);
+            border: 1px solid rgba(255,255,255,0.18); border-radius: 9px;
+            box-shadow: inset 0 0 4px rgba(0,0,0,0.7);
+        }
+        #hpFillWrap {
+            position: relative; width: 100%; height: 100%;
+            border-radius: 6px; overflow: hidden;
+            background: rgba(255,255,255,0.06);
+        }
+        #hpFill {
+            height: 100%; width: 100%;
+            background: linear-gradient(90deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0) 26%,
+                        #7be0ff 55%, #2fbf71 100%);
+            background-size: 100% 100%;
+            box-shadow: inset 0 2px 6px rgba(255,255,255,0.35),
+                        inset 0 -4px 8px rgba(0,0,0,0.35),
+                        0 0 14px rgba(47,191,113,0.55);
+            transition: width 0.18s cubic-bezier(0.22, 1, 0.36, 1);
+            border-radius: 6px;
+        }
+        #hpFill::after {
+            content: ''; position: absolute; inset: 0;
+            background: linear-gradient(180deg, rgba(255,255,255,0.45) 0%, rgba(255,255,255,0) 40%);
+            border-radius: 6px;
+        }
+        #hpText {
+            position: absolute; inset: 0; z-index: 3;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 13px; font-weight: bold; letter-spacing: 0.4px; color: #fff;
+            text-shadow: 0 1px 2px #000; font-family: 'Segoe UI', Arial, sans-serif;
+        }
+        @keyframes hpDanger {
+            0% { transform: translateX(0); }
+            25% { transform: translateX(-2px); }
+            50% { transform: translateX(2px); }
+            75% { transform: translateX(-2px); }
+            100% { transform: translateX(0); }
+        }
+
+        /* Шкала опыта: слева сверху, под HUD (ника и здоровья) */
+        #xpBar {
+            position: fixed; top: 108px; left: 16px; right: auto;
+            z-index: 20; width: 300px; height: 24px; padding: 2px;
+            background: linear-gradient(180deg, rgba(18,22,32,0.85), rgba(10,13,20,0.65));
+            border: 1px solid rgba(255,213,79,0.35); border-radius: 12px;
+            box-shadow: 0 3px 14px rgba(0,0,0,0.5), inset 0 0 6px rgba(0,0,0,0.6);
+        }
+        #xpFillWrap {
+            position: relative; width: 100%; height: 100%;
+            border-radius: 9px; overflow: hidden;
+            background: rgba(255,255,255,0.05);
+        }
+        #xpFill {
+            height: 100%; width: 0%;
+            background: linear-gradient(90deg,
+                        rgba(255,213,79,0.15) 0%,
+                        #ffe08a 40%,
+                        #ffd54f 75%,
+                        #c98a12 100%);
+            box-shadow: inset 0 2px 4px rgba(255,255,255,0.45),
+                        inset 0 -3px 6px rgba(0,0,0,0.25),
+                        0 0 14px rgba(255,213,79,0.5);
+            transition: width 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+            border-radius: 9px;
+        }
+        #xpFill::after {
+            content: ''; position: absolute; inset: 0;
+            background: linear-gradient(180deg, rgba(255,255,255,0.5) 0%, rgba(255,255,255,0) 55%);
+            border-radius: 9px;
+        }
+        #xpFill::before {
+            content: ''; position: absolute; top: 0; bottom: 0; width: 40%;
+            left: -40%; background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.55) 100%);
+            animation: xpShine 2.6s ease-in-out infinite;
+        }
+        @keyframes xpShine {
+            0% { left: -40%; }
+            60% { left: 120%; }
+            100% { left: 120%; }
+        }
+        #xpText {
+            position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+            font-size: 13px; font-weight: bold; letter-spacing: 0.4px; color: #fff;
+            text-shadow: 0 1px 3px #000, 0 0 6px rgba(0,0,0,0.8);
+            z-index: 2; font-family: 'Segoe UI', Arial, sans-serif;
+        }
+
+        /* Экран смерти */
+        #death {
+            position: fixed; inset: 0; z-index: 50;
+            display: none; flex-direction: column; align-items: center; justify-content: center;
+            gap: 18px; background: rgba(0,0,0,0.82);
+        }
+        #death h2 { font-size: 52px; color: #ff6b6b; text-shadow: 0 0 20px #ff0000; letter-spacing: 2px; }
+        #death .btn-group { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; }
+        #death button {
+            padding: 14px 34px; font-size: 18px; cursor: pointer; border: none; border-radius: 8px;
+            color: #fff;
+        }
+        #respawnBtn { background: #2fbf71; }
+        #respawnBtn:hover { background: #37d380; }
+        #menuBtn { background: #e74c3c; }
+        #menuBtn:hover { background: #ff5c4d; }
+
+        /* Настройки */
+        #settingsPanel {
+            position: fixed; inset: 0; z-index: 60;
+            display: none; flex-direction: column; align-items: center; justify-content: center;
+            background: rgba(0,0,0,0.75);
+        }
+        #settingsPanel.open { display: flex; }
+        .set-box {
+            width: 340px; max-width: 92vw; padding: 22px;
+            background: linear-gradient(180deg, rgba(24,28,38,0.98), rgba(14,17,24,0.98));
+            border: 1px solid rgba(120,180,255,0.35); border-radius: 16px;
+            box-shadow: 0 14px 50px rgba(0,0,0,0.7); font-family: Arial; color: #dfe3ec;
+        }
+        .set-box h2 { margin: 0 0 16px; color: #8fd0ff; text-align: center; font-size: 18px; }
+        .set-row {
+            display: flex; align-items: center; gap: 10px; padding: 10px 8px;
+            border-radius: 8px; cursor: pointer; font-size: 14px;
+        }
+        .set-row:hover { background: rgba(120,180,255,0.08); }
+        .set-row input { width: 18px; height: 18px; accent-color: #4aa3ff; cursor: pointer; }
+        .set-note { font-size: 12px; color: #8a93a6; margin: 8px 4px 16px; }
+        #settingsCloseBtn {
+            width: 100%; padding: 10px; border: none; border-radius: 9px; cursor: pointer;
+            background: linear-gradient(180deg, #2f7ed6, #1d5cab); color: #fff; font-weight: bold; font-size: 14px;
+        }
+        #settingsCloseBtn:hover { filter: brightness(1.15); }
+
+        /* Игра */
+        #game { position: fixed; inset: 0; display: none; }
+
+        /* Текст "You are in Z Zone" вверху по центру */
+        #zoneLabel {
+            position: fixed; top: 12px; left: 50%; transform: translateX(-50%);
+            z-index: 20; font-size: 18px; font-weight: bold; padding: 6px 16px;
+            border-radius: 20px; background: rgba(0,0,0,0.5); color: #fff;
+            pointer-events: none; text-shadow: 0 0 4px #000;
+        }
+
+        /* Кнопка выхода в меню: квадратная, залита красным, красный крестик */
+        /* Онлайн-счётчик (правый верхний угол; только в главном меню) */
+        #onlineBox {
+            position: fixed; top: 16px; right: 16px; z-index: 39;
+            display: none; padding: 9px 16px; text-align: right; user-select: none;
+            background: linear-gradient(180deg, rgba(0,0,0,0.72), rgba(0,0,0,0.55));
+            border: 1px solid rgba(126,224,139,0.35); border-radius: 14px;
+            box-shadow: 0 4px 18px rgba(0,0,0,0.5), inset 0 0 6px rgba(0,0,0,0.5);
+        }
+        #onlineTotal {
+            font-size: 16px; font-weight: bold; color: #7ee38b;
+            text-shadow: 0 2px 5px rgba(0,0,0,0.6); line-height: 1.25;
+        }
+        #onlineDetail { font-size: 11px; color: #9aa5b8; line-height: 1.3; }
+
+        #exitToMenuBtn {
+            position: fixed; top: 16px; right: 16px; z-index: 30;
+            width: 44px; height: 44px; border-radius: 12px;
+            border: 1px solid rgba(255,120,130,0.55);
+            background: linear-gradient(180deg, #93273a 0%, #6b1a29 55%, #4c111d 100%);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.55), inset 0 2px 0 rgba(255,255,255,0.18),
+                        inset 0 -3px 8px rgba(0,0,0,0.35);
+            color: #ffe3e6; font-size: 20px; font-weight: bold; line-height: 1;
+            display: none; align-items: center; justify-content: center;
+            cursor: pointer; transition: transform .16s ease, box-shadow .16s ease, filter .16s ease;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.6);
+            font-family: 'Segoe UI', Arial, sans-serif; padding: 0;
+        }
+        #exitToMenuBtn:hover {
+            filter: brightness(1.18);
+            box-shadow: 0 4px 22px rgba(255,61,90,0.45), inset 0 2px 0 rgba(255,255,255,0.25);
+            transform: translateY(-1px);
+        }
+        #exitToMenuBtn:active { transform: translateY(1px); filter: brightness(0.95); }
+
+        /* Босс-бары: до 4 полос HP Chaos-мобов (сверху по центру, друг под другом) */
+        #bossHud {
+            position: fixed; top: 14px; left: 50%; transform: translateX(-50%);
+            z-index: 21; display: none; flex-direction: column; align-items: center;
+            gap: 7px; width: min(580px, 80vw); pointer-events: none;
+            font-family: 'Segoe UI', Arial, sans-serif;
+        }
+        #bossHud.show { display: flex; }
+        /* Когда видна надпись "You are in ... Zone" — бары чуть ниже неё. */
+        #bossHud.below-label { top: 58px; }
+        .boss-entry {
+            width: 100%; display: flex; flex-direction: column; align-items: center;
+            gap: 3px;
+        }
+        .boss-title {
+            font-size: 14px; font-weight: bold; letter-spacing: 1px;
+            color: #ffffff; text-shadow: 0 1px 3px #000, 0 0 12px rgba(0,0,0,0.9);
+            line-height: 1.2;
+        }
+        .boss-title .boss-rarity {
+            color: #c580ff; text-shadow: 0 1px 3px #000, 0 0 14px rgba(157,91,182,0.8);
+        }
+        .boss-title .boss-name {
+            color: #ffe08a; text-shadow: 0 1px 3px #000, 0 0 14px rgba(255,200,90,0.55);
+        }
+        /* Fractal — предфинальный босс (фиолетовый), Chaos — финальный (малиновый). */
+        .boss-entry.fractal .boss-track {
+            border-color: #9b59b6;
+            box-shadow: 0 0 0 2px rgba(0,0,0,0.85), 0 0 18px rgba(155,89,182,0.55),
+                        inset 0 0 10px rgba(0,0,0,0.9);
+        }
+        .boss-entry.chaos .boss-track {
+            border-color: #ff2d95;
+            box-shadow: 0 0 0 2px rgba(0,0,0,0.9), 0 0 22px rgba(255,45,149,0.75),
+                        inset 0 0 12px rgba(0,0,0,0.95);
+        }
+        /* Hexagon — мини-босс (янтарный). */
+        .boss-entry.hexagon .boss-track {
+            border-color: #ffc93c;
+            box-shadow: 0 0 0 2px rgba(0,0,0,0.85), 0 0 16px rgba(255,201,60,0.5),
+                        inset 0 0 10px rgba(0,0,0,0.9);
+        }
+        .boss-entry.hexagon .boss-title .boss-rarity {
+            color: #ffc93c; text-shadow: 0 1px 3px #000, 0 0 15px rgba(255,201,60,0.9);
+        }
+        .boss-entry.chaos .boss-title .boss-rarity {
+            color: #ff2d95; text-shadow: 0 1px 3px #000, 0 0 18px rgba(255,45,149,0.95);
+            animation: bossPulse 1.6s infinite;
+        }
+        .boss-track {
+            position: relative; width: 100%; height: 24px;
+            background: linear-gradient(180deg, #171a22, #0a0c11);
+            border: 2px solid #e57a55;
+            border-radius: 14px;
+            box-shadow: 0 0 0 2px rgba(0,0,0,0.85),
+                        0 0 18px rgba(229,122,85,0.35),
+                        inset 0 0 10px rgba(0,0,0,0.9);
+            overflow: hidden;
+        }
+        .boss-bg {
+            position: absolute; inset: 0;
+            background: linear-gradient(180deg, rgba(255,255,255,0.09), rgba(255,255,255,0.02));
+        }
+        .boss-fill {
+            position: absolute; top: 0; left: 0; height: 100%; width: 100%;
+            background: linear-gradient(180deg, #ff9a6b 0%, #e85a3a 55%, #b0341d 100%);
+            box-shadow: inset 0 2px 5px rgba(255,255,255,0.35), inset 0 -5px 10px rgba(0,0,0,0.35);
+            transition: width 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        .boss-fill.low {
+            background: linear-gradient(180deg, #ff6b6b 0%, #d92b2b 55%, #8f1212 100%);
+        }
+        .boss-shine {
+            position: absolute; top: 0; left: 0; width: 40%; height: 100%;
+            background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.30) 50%, rgba(255,255,255,0) 100%);
+            animation: bossShine 2.6s ease-in-out infinite;
+        }
+        @keyframes bossShine {
+            0% { left: -45%; }
+            60%, 100% { left: 110%; }
+        }
+        @keyframes bossPulse {
+            0%, 100% { opacity: 1; text-shadow: 0 1px 3px #000, 0 0 10px rgba(255,45,149,0.7); }
+            50% { opacity: 0.7; text-shadow: 0 1px 3px #000, 0 0 26px rgba(255,45,149,1); }
+        }
+        .boss-text {
+            position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+            font-size: 12px; font-weight: bold; color: #fff; letter-spacing: 0.5px;
+            text-shadow: 0 1px 3px #000; z-index: 2;
+        }
+
+        /* Хотбар в игре (низ по центру) */
+        #gameHotbar {
+            position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%);
+            z-index: 25; display: flex; flex-direction: column; align-items: center; gap: 3px;
+            pointer-events: none;
+        }
+        #gameHotbarLabel {
+            font-size: 11px; color: #ffd54f; font-weight: bold;
+            text-shadow: 0 1px 3px #000; letter-spacing: 1px;
+        }
+        #gameHotbarBar {
+            display: flex; gap: 5px; padding: 6px;
+            background: rgba(0,0,0,0.55); border: 1px solid rgba(255,255,255,0.18);
+            border-radius: 12px;
+        }
+        /* Слоты в игре наследуют вид инвентаря (.inv-slot.hotbar-slot): картинка+имя.
+           Тонкие правки: курсор, перенос мыши на слот. */
+        #gameHotbarBar .inv-slot.hotbar-slot {
+            cursor: grab; pointer-events: auto;
+            width: 44px; height: 52px;
+        }
+        #gameHotbarBar .inv-slot.hotbar-slot:hover { border-color: rgba(255,255,255,0.4); }
+        #gameHotbarBar .inv-slot.hotbar-slot.dragging { opacity: 0.4; }
+        #gameHotbarBar .inv-slot.hotbar-slot .petal-shape { width: 26px; height: 26px; pointer-events: none; }
+        #gameHotbarBar .inv-slot.hotbar-slot .inv-name { font-size: 8px; }
+        #gameHotbarBar .inv-slot.hotbar-slot.empty-slot { cursor: default; }
+        .game-hotbar-cooldown {
+            position: absolute; top: 0; left: 0; right: 0; height: 0;
+            border-radius: 8px; pointer-events: none;
+            background: linear-gradient(180deg, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.55) 80%, rgba(0,0,0,0.4) 100%);
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.25), inset 0 0 10px rgba(0,0,0,0.8);
+            z-index: 2;
+        }
+
+        /* Экран перехода между зонами: плавное затемнение до чёрного и обратно */
+        #transfer {
+            position: fixed; inset: 0; z-index: 40;
+            display: none; align-items: center; justify-content: center;
+            background: #000; pointer-events: none;
+        }
+        #transfer .box { text-align: center; }
+        #transfer .t-title { font-size: 28px; color: #fff; font-weight: bold; text-shadow: 0 2px 10px rgba(0,0,0,0.8); }
+
+        /* Миникарта — круглый радар (правый нижний угол) */
+        #minimap {
+            position: fixed; right: 16px; bottom: 16px; z-index: 20;
+            background: rgba(0,0,0,0.6); border: 2px solid #3a4152; border-radius: 50%;
+            padding: 6px;
+            width: 210px; height: 210px;
+        }
+        #minimap canvas {
+            border-radius: 50%;
+            display: block;
+        }
+
+        /* Чат */
+#chat {
+            position: fixed; left: 78px; bottom: 16px; z-index: 20;
+            width: 300px; font-family: Arial, sans-serif;
+        }
+/* Инвентарь и крафт ВНУТРИ игры: круглые иконки (как во флор), в левом
+           нижнем углу, над чатом. Клик открывает панель. */
+        #gameCraftBtn {
+            position: fixed; left: 16px; bottom: 72px; z-index: 22;
+            display: none; align-items: center; justify-content: center;
+            width: 46px; height: 46px; padding: 0; cursor: pointer; user-select: none;
+            background: rgba(20,24,32,0.82); border: 1px solid rgba(255,214,79,0.6);
+            border-radius: 50%; color: #ffd54f;
+            box-shadow: 0 3px 12px rgba(0,0,0,0.5);
+            transition: background 0.15s ease, transform 0.1s ease;
+        }
+        #gameCraftBtn:hover { background: rgba(40,48,64,0.92); transform: scale(1.06); }
+        #gameCraftBtn svg { display: block; }
+        #gameInvBtn {
+            position: fixed; left: 16px; bottom: 16px; z-index: 22;
+            display: none; align-items: center; justify-content: center;
+            width: 46px; height: 46px; padding: 0; cursor: pointer; user-select: none;
+            background: rgba(20,24,32,0.82); border: 1px solid rgba(255,255,255,0.28);
+            border-radius: 50%; color: #cfd6e4;
+            box-shadow: 0 3px 12px rgba(0,0,0,0.5);
+            transition: background 0.15s ease, transform 0.1s ease;
+        }
+        #gameInvBtn:hover { background: rgba(40,48,64,0.92); transform: scale(1.06); }
+        #gameInvBtn svg { display: block; }
+#gameInvPanel {
+            position: fixed; left: 16px; bottom: 320px; z-index: 23;
+            width: 324px; max-height: 380px; display: none; flex-direction: column;
+            background: rgba(14,17,24,0.92); border: 1px solid rgba(255,255,255,0.16);
+            border-radius: 12px; overflow: hidden;
+            box-shadow: 0 6px 24px rgba(0,0,0,0.6);
+            font-family: Arial, sans-serif;
+            /* Инвентарь открывается над левым углом (над иконками и чатом):
+               bottom=320 — чтобы не перекрывать раскрытое окно чата. */
+        }
+        /* Скроллбар панели под цвет самой панели (тонкий тёмный). */
+        #gameInvBody::-webkit-scrollbar { width: 8px; }
+        #gameInvBody::-webkit-scrollbar-track { background: rgba(255,255,255,0.04); }
+        #gameInvBody::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.16); border-radius: 6px;
+        }
+        #gameInvBody::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.28); }
+        #gameInvSearchRow { padding: 6px 10px 0 10px; }
+        #gameInvSearch {
+            width: 100%; box-sizing: border-box; border: 1px solid rgba(255,255,255,0.14);
+            border-radius: 8px; padding: 5px 9px; background: rgba(255,255,255,0.05);
+            color: #e6eaf2; font-size: 12px; outline: none;
+        }
+        #gameInvSearch::placeholder { color: #7b8494; }
+        #gameInvTitle { padding: 8px 12px; color: #ffd54f; font-weight: bold;
+            border-bottom: 1px solid rgba(255,255,255,0.12); display: flex; justify-content: space-between; align-items: center; }
+        #gameInvClose { background: none; border: none; color: #8a93a6; cursor: pointer; font-size: 14px; }
+        #gameInvHint { padding: 5px 12px; color: #8a93a6; font-size: 11px; }
+        #gameInvBody { overflow-y: auto; padding: 8px 10px; display: flex; flex-wrap: wrap; gap: 6px; align-content: flex-start; }
+        #gameInvPanel .inv-slot { width: 44px; height: 52px; cursor: grab; pointer-events: auto; position: relative; }
+        #gameInvPanel .inv-slot .petal-shape { width: 26px; height: 26px; pointer-events: none; }
+        #gameInvPanel .inv-slot[draggable="true"] { -webkit-user-drag: element; }
+        #gameInvEmpty { width: 100%; text-align: center; color: #8a93a6; font-size: 12px; padding: 10px 0; }
+        #chatButton {
+            display: flex; align-items: center; gap: 8px;
+            padding: 8px 14px; cursor: pointer; user-select: none;
+            background: rgba(20,24,32,0.82); border: 1px solid rgba(255,255,255,0.18);
+            border-radius: 10px; color: #cfd6e4; font-size: 13px;
+            box-shadow: 0 3px 12px rgba(0,0,0,0.5);
+            transition: background 0.15s ease;
+        }
+        #chatButton:hover { background: rgba(40,48,64,0.9); }
+        #chatButton .dot { width: 8px; height: 8px; border-radius: 50%; background: #2fbf71; box-shadow: 0 0 6px #2fbf71; }
+        #chatWindow {
+            display: none; flex-direction: column; height: 250px;
+            background: rgba(14,17,24,0.88); border: 1px solid rgba(255,255,255,0.16);
+            border-radius: 12px; overflow: hidden;
+            box-shadow: 0 6px 24px rgba(0,0,0,0.6);
+        }
+        #chatLog {
+            flex: 1; overflow-y: auto; padding: 10px 12px;
+            font-size: 13px; line-height: 1.5; color: #e6eaf2;
+        }
+        /* Скроллбар чата — под тематику чата (тёмно-синий, тонкий). */
+        #chatLog::-webkit-scrollbar { width: 8px; }
+        #chatLog::-webkit-scrollbar-track { background: rgba(120,180,255,0.06); border-radius: 6px; }
+        #chatLog::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, rgba(120,180,255,0.55), rgba(74,155,255,0.75));
+            border-radius: 6px;
+        }
+        #chatLog::-webkit-scrollbar-thumb:hover { background: rgba(143,208,255,0.9); }
+        #chatLog .msg { margin-bottom: 5px; word-wrap: break-word; }
+        #chatLog .name { font-weight: bold; }
+        #chatLog .zone-tag { color: #8a93a6; font-size: 11px; opacity: 0.85; }
+        #chatSearchRow { padding: 5px 8px 0 8px; }
+        #chatSearch {
+            width: 100%; box-sizing: border-box; border: 1px solid rgba(255,255,255,0.14);
+            border-radius: 8px; padding: 5px 9px; background: rgba(255,255,255,0.05);
+            color: #e6eaf2; font-size: 12px; outline: none;
+        }
+        #chatSearch::placeholder { color: #7b8494; }
+
+        /* Тултип петали: тёмная пилюля с рамкой цвета редкости. */
+        #petalTip {
+            position: fixed; z-index: 90; display: none; pointer-events: none;
+            max-width: 260px; padding: 8px 10px; border-radius: 10px;
+            background: rgba(10,13,20,0.94); border: 1px solid rgba(255,255,255,0.25);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.6);
+            font-family: 'Segoe UI', Arial, sans-serif; font-size: 12px; color: #e6eaf2;
+            line-height: 1.45;
+        }
+        #petalTip .t-name { font-size: 14px; font-weight: bold; }
+        #petalTip .t-rar { font-size: 11px; opacity: 0.9; }
+        #petalTip .t-abl { color: #ffd54f; font-weight: bold; margin-top: 4px; }
+        #petalTip .t-desc { color: #b8c2d4; }
+        #petalTip .t-stats { margin-top: 4px; color: #9fe8b8; }
+        #chatLog .me .name { color: #7be0ff; }
+        #chatLog .other .name { color: #ffd54f; }
+        #chatLog .msg.sys { color: #ff9ac2; font-style: italic; }
+        #chatLog .msg.sys::before { content: "[!] "; font-weight: bold; color: #ff3d81; }
+        #chatLog .msg.sys.announce { color: #ffe27a; }
+        #chatLog .msg.sys.announce::before { content: "[📣] "; color: #ffd54f; }
+        #chatLog .msg.sys.craft.fractal {
+            color: #c39bd3; font-weight: bold; font-style: normal;
+            text-shadow: 0 0 10px rgba(155,89,182,0.75);
+        }
+        #chatLog .msg.sys.craft.fractal::before { content: "[❄️] "; color: #9b59b6; }
+        #chatLog .msg.sys.craft.chaos {
+            color: #ff7ab8; font-weight: bold; font-style: normal;
+            text-shadow: 0 0 10px rgba(255,45,149,0.75);
+        }
+        #chatLog .msg.sys.craft.chaos::before { content: "[☠️] "; color: #ff2d95; }
+        #chatInput {
+            border: none; border-top: 1px solid rgba(255,255,255,0.14);
+            padding: 10px 12px; background: rgba(255,255,255,0.05); color: #fff;
+            font-size: 13px; outline: none;
+        }
+        #chatInput::placeholder { color: #7b8494; }
+/* Всплывающие уведомления чата — над кнопкой чата (чат смещён вправо
+           от иконок инвентаря/крафта в углу). */
+        #chatToast {
+            position: fixed; left: 78px; bottom: 58px; z-index: 21;
+            display: flex; flex-direction: column; gap: 6px; pointer-events: none;
+            width: 300px; font-family: Arial, sans-serif;
+        }
+        .chat-toast {
+            background: rgba(14,17,24,0.82); border: 1px solid rgba(255,255,255,0.16);
+            border-left: 3px solid rgba(255,255,255,0.5);
+            border-radius: 8px; padding: 6px 10px; font-size: 13px; color: #e6eaf2;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.5);
+            opacity: 1; transition: opacity .3s ease;
+            word-wrap: break-word;
+        }
+        .chat-toast .name { font-weight: bold; }
+        .chat-toast.me .name { color: #7be0ff; }
+        .chat-toast.other .name { color: #ffd54f; }
+        .chat-toast.sys {
+            border-left-color: #ff3d81;
+            background: linear-gradient(90deg, rgba(60,10,30,0.92), rgba(14,17,24,0.88));
+            color: #ff9ac2;
+            box-shadow: 0 0 16px rgba(255,61,129,0.35);
+        }
+        .chat-toast.sys.announce {
+            border-left-color: #ffd54f;
+            background: linear-gradient(90deg, rgba(45,35,5,0.92), rgba(14,17,24,0.88));
+            color: #ffe27a;
+            box-shadow: 0 0 16px rgba(255,214,79,0.35);
+        }
+        .chat-toast.sys.craft.fractal {
+            border-left-color: #9b59b6;
+            background: linear-gradient(90deg, rgba(40,20,60,0.94), rgba(14,17,24,0.88));
+            color: #d3b7e6;
+            font-weight: bold;
+            box-shadow: 0 0 18px rgba(155,89,182,0.5);
+        }
+        .chat-toast.sys.craft.chaos {
+            border-left-color: #ff2d95;
+            background: linear-gradient(90deg, rgba(55,10,40,0.94), rgba(14,17,24,0.88));
+            color: #ff9dcd;
+            font-weight: bold;
+            box-shadow: 0 0 18px rgba(255,45,149,0.5);
+        }
+        .chat-toast.hidden { opacity: 0; }
+        .chat-toast.pickup {
+            border-left-color: #2ecc71;
+            background: linear-gradient(90deg, rgba(8,42,24,0.92), rgba(14,17,24,0.88));
+            color: #7be0a8;
+            box-shadow: 0 0 14px rgba(46,204,113,0.35);
+        }
+
+        /* Админ-панель */
+        #adminBtn {
+            position: fixed; right: 72px; top: 16px; z-index: 25;
+            display: none; padding: 8px 14px; cursor: pointer;
+            background: rgba(60,10,30,0.85); border: 1px solid rgba(255,61,129,0.6);
+            border-radius: 10px; color: #ff9ac2; font-size: 13px; font-family: Arial;
+            box-shadow: 0 3px 14px rgba(255,61,129,0.35);
+        }
+        #adminBtn:hover { background: rgba(90,16,45,0.9); }
+        #adminBadge {
+            position: fixed; right: 16px; top: 52px; z-index: 25;
+            display: flex; flex-direction: column; gap: 6px; align-items: flex-end;
+            pointer-events: none;
+        }
+        #adminBadge .ab-item {
+            padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: bold; font-family: Arial;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+        }
+        #adminBadge #abGod { background: rgba(0,120,255,0.85); border: 1px solid #6ab4ff; color: #eaf4ff; }
+        #adminBadge #abInvis { background: rgba(120,60,220,0.85); border: 1px solid #b48cff; color: #f0e9ff; }
+        #adminPanel {
+            position: fixed; right: 16px; top: 56px; z-index: 26;
+            display: none; width: 280px; max-height: 70vh; overflow-y: auto;
+            padding: 14px; background: rgba(14,17,24,0.94);
+            border: 1px solid rgba(255,61,129,0.4); border-radius: 14px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.7); font-family: Arial; color: #dfe3ec;
+        }
+        #adminPanel.open { display: block; }
+        #adminPanel h3 { margin: 0 0 10px; color: #ff9ac2; font-size: 14px; letter-spacing: 1px; }
+        #adminPanel .adm-sec { margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        #adminPanel .adm-sec:last-child { border-bottom: none; }
+        #adminPanel .adm-lbl { font-size: 11px; color: #8a93a6; margin-bottom: 5px; }
+        #adminPanel select, #adminPanel input {
+            width: 100%; box-sizing: border-box; margin-bottom: 6px; padding: 7px 9px;
+            background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 8px; color: #fff; font-size: 13px; font-family: Arial; outline: none;
+        }
+        /* Чтoбы в раскрывающемся списке все варианты были всегда видны */
+        #adminPanel select option {
+            background: #1a1e2a; color: #fff; font-size: 13px;
+        }
+        #adminPanel select option:hover, #adminPanel select option:checked { background: #3a2a3f; }
+        #adminPanel .adm-btn {
+            width: 100%; padding: 8px; border: none; border-radius: 9px; cursor: pointer;
+            background: linear-gradient(180deg, #b0255a, #7c1438); color: #fff; font-weight: bold; font-size: 13px;
+        }
+        #adminPanel .adm-btn:hover { filter: brightness(1.2); }
+        #adminPanel .adm-btn.mini {
+            width: auto; padding: 3px 10px; font-size: 12px; margin-left: 6px;
+            background: rgba(255,61,129,0.6);
+        }
+        #adminPanel .adm-btn.mini.ban { background: rgba(220,53,69,0.7); }
+        #adminPanel .adm-zone-row { display: flex; flex-wrap: wrap; gap: 6px; }
+        #adminPanel .adm-zone-btn { width: auto; flex: 1 1 auto; padding: 7px 8px; font-size: 11px; }
+        #adminPanel .adm-zone-btn:nth-child(1) { background: linear-gradient(180deg, #2c3e50, #1a252f); } /* Chaos */
+        #adminPanel .adm-zone-btn:nth-child(2) { background: linear-gradient(180deg, #9333c4, #5b1a7c); } /* Fractal */
+        #adminPanel .adm-zone-btn:nth-child(3) { background: linear-gradient(180deg, #1abc9c, #0e7a6a); } /* Hexagon */
+        #adminPanel .adm-zone-btn:nth-child(4) { background: linear-gradient(180deg, #2f7fd4, #16427f); } /* Pentagon */
+        #adminPanel .adm-zone-btn:nth-child(5) { background: linear-gradient(180deg, #d94040, #8f1a1a); } /* Square */
+        #adminPanel .adm-zone-btn:nth-child(6) { background: linear-gradient(180deg, #d97a20, #8f4e0f); } /* Triangle */
+        #adminPanel .adm-zone-btn:nth-child(7) { background: linear-gradient(180deg, #d9a520, #9a730f); } /* Line */
+        #adminPanel .adm-zone-btn:nth-child(8) { background: linear-gradient(180deg, #2ecc71, #1b8f4c); } /* Point */
+        #adminPanel .adm-zone-btn:nth-child(9) { background: linear-gradient(180deg, #1b2631, #0d1117); } /* Chaos II */
+        #adminPanel .adm-zone-btn:nth-child(10) { background: linear-gradient(180deg, #6f3f85, #3d2048); } /* Fractal II */
+        #adminPanel .adm-zone-btn:nth-child(11) { background: linear-gradient(180deg, #12806b, #0a4637); } /* Hexagon II */
+        #adminPanel .adm-zone-btn:nth-child(12) { background: linear-gradient(180deg, #256ba5, #123a63); } /* Pentagon II */
+        #adminPanel .adm-zone-btn:nth-child(13) { background: linear-gradient(180deg, #a92e2b, #5e0f0e); } /* Square II */
+        #adminPanel .adm-zone-btn:nth-child(14) { background: linear-gradient(180deg, #a04d16, #5a2608); } /* Triangle II */
+        #adminPanel .adm-zone-btn:nth-child(15) { background: linear-gradient(180deg, #a8860a, #574500); } /* Line II */
+        #adminPanel .adm-zone-btn:nth-child(16) { background: linear-gradient(180deg, #1e9957, #0e5730); } /* Point II */
+        #adminPanel .adm-zone-btn:nth-child(17) { background: linear-gradient(180deg, #148f77, #0a4a3e); } /* TestRoom */
+        #adminPanel .adm-safe-btn { background: linear-gradient(180deg, #2ecc71, #1b8f4c) !important; }
+        #admPlayers { max-height: 180px; overflow-y: auto; }
+        #admPlayers .adm-row {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 4px 6px; border-radius: 6px; font-size: 12px; margin-bottom: 3px;
+            background: rgba(255,255,255,0.04);
+        }
+        #admPlayers .adm-row .nm { font-weight: bold; }
+        #admPlayers .adm-row .info { color: #8a93a6; font-size: 11px; }
+        #adminAck { margin-top: 6px; font-size: 12px; color: #7be0ff; min-height: 14px; word-wrap: break-word; }
+    </style>
+    <style>
+        /* ===== SecretProjectWave: лобби и волны ===== */
+        /* Когда открыт оверлей лобби — домашние элементы меню скрыты. */
+        #menu.lobby-open .menu-home { display: none !important; }
+        /* Лобби — ПОЛНОЭКРАННЫЙ отдельный экран; фон зависит от выбранной зоны. */
+        #lobbyOverlay {
+            position: fixed; inset: 0; width: 100%; height: 100%;
+            background: rgba(10, 16, 28, 0.98);
+            color: #dfe6f2; z-index: 100;
+            display: flex; flex-direction: column; gap: 12px;
+            align-items: center; justify-content: center;
+            transition: background 0.4s;
+        }
+        #lobbyHome, #lobbyParty { width: 760px; max-width: calc(100vw - 40px); }
+        #lobbyParty { display: flex; flex-direction: column; gap: 12px; }
+        /* Back — внутри карточки выбора, справа от заголовка Lobby */
+        #lobbyOverlay #lobbyBackBtn {
+            position: static; background: rgba(255,255,255,0.08) !important; color: #dfe6f2 !important;
+            border: 1px solid rgba(255,255,255,0.22);
+            border-radius: 999px; padding: 8px 18px; font-size: 13px; letter-spacing: 1px;
+            cursor: pointer; transition: background 0.2s;
+        }
+        #lobbyOverlay #lobbyBackBtn:hover { background: rgba(255,255,255,0.18) !important; }
+        /* В экране пати (превью игроков) Back-кнопки нет */
+        #menu.party-view #lobbyBackBtn { display: none !important; }
+        .lo-header { color: #9fc1ff; }
+        #lobbyHome { display: flex; flex-direction: column; gap: 12px; width: 100%; }
+        #lobbyHome .lo-cols { display: flex; gap: 14px; width: 100%; }
+        #lobbyHome .lo-col {
+            flex: 1; display: flex; flex-direction: column; gap: 9px;
+            background: rgba(255,255,255,0.04); border-radius: 14px; padding: 14px;
+        }
+        .lo-title { font-size: 16px; letter-spacing: 2px; text-transform: uppercase; font-weight: 800; }
+        .lo-public { color: #58d68d; }
+        .lo-private { color: #f7dc6f; }
+        #lobbyOverlay button {
+            background: #2a4a8a; color: #fff; border: none; border-radius: 9px;
+            padding: 9px 14px; cursor: pointer; font-size: 14px; white-space: nowrap;
+        }
+        #lobbyOverlay button:hover { filter: brightness(1.2); }
+        .lc-primary { background: #2a8a4a !important; font-weight: 700; }
+        .lc-secondary { background: #7d6a1f !important; }
+        .lc-start { background: #2a8a4a !important; font-weight: 700; }
+        .lc-danger { background: #8a2a2a !important; }
+        #lobbyOverlay .lc-row { display: flex; gap: 8px; align-items: center; }
+        #lobbyOverlay .lc-between { justify-content: space-between; }
+        #lobbyCodeInput {
+            width: 100%; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.18);
+            border-radius: 9px; color: #fff; padding: 10px; font-size: 16px; letter-spacing: 4px; text-align: center;
+        }
+        #lobbyList { display: flex; flex-direction: column; gap: 5px; max-height: 260px; overflow-y: auto; min-height: 120px; }
+        #lobbyList .lobby-item {
+            background: rgba(255,255,255,0.06); border-radius: 9px; padding: 9px 12px;
+            cursor: pointer; font-size: 14px; display: flex; justify-content: space-between; align-items: center;
+        }
+        #lobbyList .lobby-item:hover { background: rgba(255,255,255,0.15); }
+        #lobbyList .lobby-item .li-count { color: #9fb2d0; }
+        #lobbyList .lobby-item.full { opacity: 0.45; cursor: default; }
+        #lobbyList .lc-empty { color: #8fa2c0; font-size: 13px; padding: 16px; text-align: center; }
+        #lobbyPreview { width: 100%; height: auto; border-radius: 12px; }
+        #lobbyCodeBig { font-size: 24px; letter-spacing: 7px; font-weight: 700; color: #ffd76a; }
+        #lobbyStatus { font-size: 12px; color: #9fb2d0; }
+        /* Выбор зоны: 8 цветных кнопок Point..Chaos */
+        #lobbyZoneRow { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; }
+        #lobbyZoneRow .zone-btn {
+            width: 78px; padding: 6px 0; font-size: 11px !important; font-weight: 700;
+            border-radius: 8px !important; opacity: 0.35; border: 2px solid transparent !important;
+        }
+        #lobbyZoneRow .zone-btn.sel { opacity: 1; border-color: #fff !important; }
+        /* Таймер старта — внизу по центру, над хотбаром */
+        #startCountdown {
+            position: fixed; left: 50%; bottom: 150px; transform: translateX(-50%);
+            font-size: 56px; font-weight: 900; color: #fff; letter-spacing: 4px;
+            text-shadow: 0 3px 18px rgba(0,0,0,0.85); z-index: 300; display: none;
+            text-align: center; pointer-events: none; line-height: 1;
+        }
+        #startCountdown .sc-sub { font-size: 18px; color: #ffd76a; letter-spacing: 3px; text-transform: uppercase; margin-bottom: 6px; }
+        /* Фоновый слой с тематическими мобами биома (весь экран, позади контента) */
+        #lobbyDecorCanvas {
+            position: absolute; inset: 0; width: 100%; height: 100%;
+            pointer-events: none; opacity: 0.55;
+        }
+        #lobbyOverlay > *:not(#lobbyDecorCanvas) { position: relative; z-index: 2; }
+        /* Онлайн-счётчик скрывается на экране лобби */
+        body.lobby-open #onlineBox { display: none !important; }
+        /* В экране пати — родные кнопки Shapes/Absorb/Craft слева столбиком */
+        #menu.lobby-open.party-view #absorbBtn,
+        #menu.lobby-open.party-view #craftBtn,
+        #menu.lobby-open.party-view #invBtn {
+            display: flex !important; position: fixed; left: 16px; z-index: 210;
+            width: 150px;
+        }
+        #menu.lobby-open.party-view #absorbBtn { bottom: 172px; }
+        #menu.lobby-open.party-view #craftBtn { bottom: 93px; }
+        #menu.lobby-open.party-view #invBtn { bottom: 14px; }
+        /* Хотбар тоже только в party-view */
+        #menu.lobby-open.party-view #menuHotbarWrap {
+            display: block !important; position: fixed; left: 50%; bottom: 14px;
+            transform: translateX(-50%); z-index: 210; margin: 0;
+        }
+        #menu.lobby-open.party-view #invPanel {
+            position: fixed; right: 16px; bottom: 14px; z-index: 210; max-height: 70vh;
+        }
+        /* Панели абсорба/крафта поверх полноэкранного лобби */
+        body.lobby-open #absorbPanel, body.lobby-open #craftPanel { z-index: 400; }
+        /* Экран смерти: волновые подписи */
+        #deathWaveLine { color: #ffd76a; font-size: 16px; margin-top: 6px; display: none; }
+        /* ===== Wave HUD: большой заголовок + двухслойный бар + ростер ===== */
+        #waveHudTop {
+            position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+            z-index: 40; display: none; pointer-events: none; text-align: center; width: 560px;
+        }
+        #waveHudTitle {
+            font-size: 34px; font-weight: 900; color: #fff; letter-spacing: 3px;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.85); line-height: 1.1;
+        }
+        #waveHudTitle .wave-star { color: #ffd76a; }
+        #waveBarWrap {
+            position: relative; height: 14px; margin: 6px auto 5px; width: 86%;
+            background: rgba(0,0,0,0.55); border: 1px solid rgba(255,255,255,0.25);
+            border-radius: 8px; overflow: hidden;
+        }
+        #waveBarLayer1 {
+            position: absolute; left: 0; top: 0; bottom: 0; width: 0%;
+            background: linear-gradient(90deg, #2ecc71, #7dffb0);
+            transition: width 0.4s linear;
+        }
+        #waveBarLayer2 {
+            position: absolute; left: 0; top: 0; bottom: 0; width: 0%;
+            background: linear-gradient(90deg, rgba(231,76,60,0.85), rgba(255,120,90,0.85));
+            border-radius: 6px;
+            transition: width 0.3s linear;
+        }
+        #waveRoster { display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; }
+        #waveRoster .wr-chip {
+            background: rgba(0,0,0,0.55); border-radius: 999px; padding: 2px 9px;
+            font-size: 12px; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+            border: 1.5px solid rgba(255,255,255,0.25); white-space: nowrap;
+        }
+        #waveRoster .wr-chip b { font-weight: 700; }
+        #waveRoster .wr-cnt { color: #fff; font-weight: 800; margin-left: 4px; }
+        /* ===== Team-профили слева ===== */
+        #teamPanel {
+            position: absolute; left: 14px; top: 210px; z-index: 35;
+            display: none; flex-direction: column; gap: 8px; width: 190px; pointer-events: none;
+        }
+        #teamPanel .tp-card {
+            display: flex; align-items: center; gap: 9px;
+            background: rgba(10, 14, 24, 0.72); border: 1px solid rgba(255,255,255,0.14);
+            border-radius: 12px; padding: 7px 10px;
+        }
+        #teamPanel .tp-avatar {
+            width: 34px; height: 34px; border-radius: 50%; flex: 0 0 auto;
+            border: 2.5px solid rgba(0,0,0,0.45);
+        }
+        #teamPanel .tp-main { flex: 1; min-width: 0; }
+        #teamPanel .tp-nick {
+            font-size: 13px; font-weight: 700; color: #fff;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.7);
+        }
+        #teamPanel .tp-hpwrap {
+            height: 6px; background: rgba(0,0,0,0.55); border-radius: 4px; margin-top: 4px; overflow: hidden;
+        }
+        #teamPanel .tp-hp { height: 100%; width: 100%; background: linear-gradient(90deg, #2ecc71, #7dffb0); transition: width 0.2s; }
+        #teamPanel .tp-dead .tp-avatar { filter: grayscale(1) brightness(0.5); }
+        #teamPanel .tp-dead .tp-nick { color: #8a8a8a; text-decoration: line-through; }
+        /* Баннер волны по центру экрана */
+        #waveBanner {
+            position: absolute; left: 50%; top: 22%; transform: translateX(-50%);
+            font-size: 42px; font-weight: 800; color: #fff; letter-spacing: 3px;
+            text-shadow: 0 2px 12px rgba(0,0,0,0.8); z-index: 40; display: none;
+            text-align: center; pointer-events: none;
+        }
+        #waveBanner .wave-sub { font-size: 18px; color: #ffd76a; letter-spacing: 1px; }
+        /* Счётчик волны в HUD */
+        #waveHud {
+            position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+            color: #fff; font-size: 18px; font-weight: 700; text-shadow: 0 1px 6px rgba(0,0,0,0.8);
+            z-index: 40; display: none; pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <!-- Экран входа -->
+    <div id="loginScreen" class="screen active">
+        <h1>SecretProjectWave</h1>
+        <h2>Login</h2>
+        <input id="loginNick" type="text" maxlength="16" placeholder="Nick" autocomplete="off">
+        <input id="loginPass" type="password" maxlength="32" placeholder="Password" autocomplete="off">
+        <button id="loginBtn">Sign In</button>
+        <div id="authError"></div>
+        <span class="switch-link" id="toRegister">No account? Sign up</span>
+    </div>
+
+    <!-- Экран регистрации -->
+    <div id="registerScreen" class="screen">
+        <h1>SecretProjectWave</h1>
+        <h2>Sign Up</h2>
+        <input id="regNick" type="text" maxlength="16" placeholder="Nick (2-16 characters)" autocomplete="off">
+        <input id="regPass" type="password" maxlength="32" placeholder="Password (at least 4 characters)" autocomplete="off">
+        <button id="regBtn">Sign Up</button>
+        <div id="regError"></div>
+        <span class="switch-link" id="toLogin">Already have an account? Sign in</span>
+    </div>
+
+    <!-- Главное меню (после входа) -->
+    <div id="menu" class="screen">
+        <h1 class="menu-home">SecretProjectWave</h1>
+
+        <!-- Оверлей лобби (открывается кнопкой Lobby, закрытие крестиком) -->
+        <div id="lobbyOverlay" style="display:none;">
+            <canvas id="lobbyDecorCanvas"></canvas>
+            <!-- Выбор пати: Public / Private -->
+            <div id="lobbyHome">
+                <div class="lc-row lc-between" style="width:100%;">
+                    <div class="lo-title lo-header">Lobby</div>
+                    <button id="lobbyBackBtn" title="Back to menu">✕&nbsp; Back to menu</button>
+                </div>
+                <div class="lo-cols">
+                    <div class="lo-col">
+                        <div class="lo-title lo-public">Public</div>
+                        <div id="lobbyList"><div class="lc-empty">Loading games…</div></div>
+                        <button id="lobbyCreateBtn" class="lc-primary">Create Public Party</button>
+                    </div>
+                    <div class="lo-col">
+                        <div class="lo-title lo-private">Private</div>
+                        <input id="lobbyCodeInput" maxlength="6" inputmode="numeric" placeholder="CODE">
+                        <button id="lobbyJoinBtn">Join by Code</button>
+                        <button id="lobbyCreatePrivBtn" class="lc-secondary">Create Private Party</button>
+                    </div>
+                </div>
+            </div>
+            <!-- Внутри пати: превью команды, зоны, старт -->
+            <div id="lobbyParty" style="display:none;">
+                <canvas id="lobbyPreview" width="680" height="250"></canvas>
+                <div id="lobbyZoneRow"></div>
+                <div class="lc-row lc-between">
+                    <div id="lobbyCodeBig">------</div>
+                    <div class="lc-row">
+                        <button id="lobbyStartBtn" class="lc-start">► Start</button>
+                        <button id="lobbyLeaveBtn" class="lc-danger">Leave</button>
+                    </div>
+                </div>
+                <div id="lobbyStatus"></div>
+            </div>
+        </div>
+
+        <!-- Профиль (сверху слева, как игровой HUD): аватар с динамическим
+             цветом, ник, "Logged in as", Log Out и XP-полоска -->
+        <div id="menuProfile">
+            <div id="menuProfileCard">
+                <div id="menuAvatar"><div id="menuAvatarFill"></div></div>
+                <div id="menuProfileMain">
+                    <div id="menuProfileNick">-</div>
+                    <div id="menuProfileSub">
+                        <span class="logged-as">Logged in as <b id="menuProfileNick2">-</b></span>
+                        <span class="logged-as">Best wave: <b id="menuBestWave">0</b></span>
+                        <span id="logoutBtn" title="Log out">Log Out</span>
+                    </div>
+                </div>
+            </div>
+            <!-- XP-полоска (бывшая из правого нижнего угла) -->
+            <div id="menuXpBar">
+                <div id="menuXpFill"></div>
+                <div id="menuLevel">Lv. 0 — XP: 0 / 30</div>
+            </div>
+        </div>
+
+        <!-- Хотбар по центру: показываем только активную линейку (X переключает) -->
+        <div id="menuHotbarWrap" class="menu-home">
+            <div id="menuHotbarLabel">Hotbar 1</div>
+            <div id="menuHotbarBar" class="menu-hotbar active"></div>
+            <div id="menuHotbarHint">X — switch hotbar (1 ↔ 2)</div>
+        </div>
+
+        <!-- Инвентарь (справа снизу) -->
+        <div id="invPanel">
+            <div id="invPanelTitle">Shapes</div>
+            <input id="invSearch" type="text" maxlength="40" placeholder="Search shapes..." autocomplete="off">
+            <div id="menuInventory"></div>
+        </div>
+
+        <div class="color-row menu-home" id="colorRow"></div>
+        <button id="playBtn" class="menu-home">Lobby</button>
+        <button id="settingsBtn" class="menu-home">Settings</button>
+        <div id="errorBox"></div>
+        <p class="hint menu-home">Controls: WASD (or Arrow keys) — move. Shift — pull shapes closer. Space — push shapes away.</p>
+
+        <!-- Секции слева снизу: большие кнопки с иконками как в игре -->
+        <button id="absorbBtn" class="menuBigBtn menu-home" title="Absorb shapes for XP">
+            <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M20.5 3.5 L14 10"/>
+                <path d="M14 4.5 V10 h5.5"/>
+                <circle cx="8" cy="16" r="5.5"/>
+                <circle cx="8" cy="16" r="2.2" opacity="0.6"/>
+            </svg>
+            <span class="mb-label">Absorb</span>
+        </button>
+
+        <button id="craftBtn" class="menuBigBtn menu-home" title="Craft (C)">
+            <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="3.4"/>
+                <path d="M12 3v2.6M12 18.4V21M3 12h2.6M18.4 12H21"/>
+                <path d="M5.64 5.64l1.84 1.84M16.52 16.52l1.84 1.84M18.36 5.64l-1.84 1.84M7.48 16.52l-1.84 1.84"/>
+            </svg>
+            <span class="mb-label" id="craftBtnLabel">Craft</span>
+        </button>
+
+        <button id="invBtn" class="menuBigBtn menu-home" title="Shapes (I)">
+            <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" aria-hidden="true">
+                <rect x="3.5" y="3.5" width="7" height="7" rx="1.6"/>
+                <rect x="13.5" y="3.5" width="7" height="7" rx="1.6"/>
+                <rect x="3.5" y="13.5" width="7" height="7" rx="1.6"/>
+                <rect x="13.5" y="13.5" width="7" height="7" rx="1.6"/>
+            </svg>
+            <span class="mb-label">Shapes</span>
+        </button>
+
+        <!-- Окно крафта вынесено на уровень body (ниже) — работает и в меню, и в игре -->
+        <!-- Окно Absorb: уничтожение фигур за XP (только меню) -->
+    <div id="absorbPanel">
+            <button id="absorbCloseBtn">✕</button>
+            <div id="absorbPanelTitle">Absorb</div>
+            <div id="absorbHint">Click a shape on the right to destroy it for XP. Shift = all</div>
+            <div id="absorbColumns">
+                <div id="absorbPileCol">
+                    <div id="absorbPileBox"></div>
+                    <div id="absorbCount">Added: 0</div>
+                    <div id="absorbInfo">—</div>
+                    <button id="absorbResetBtn" title="Reset absorb (return shapes to inventory)">Reset</button>
+                </div>
+                <div id="absorbInvCol">
+                    <div id="absorbInvTitle">Absorb inventory</div>
+                    <div id="absorbInventory"></div>
+                </div>
+            </div>
+            <div id="absorbXpPreview">XP: +0</div>
+            <div id="absorbCompare"></div>
+            <button id="absorbBtnInner">Absorb</button>
+            <div id="absorbResult"></div>
+        </div>
+    </div>
+
+    <!-- Настройки -->
+    <div id="settingsPanel" class="overlay">
+        <div class="set-box">
+            <h2>Settings</h2>
+            <label class="set-row"><input type="checkbox" id="setGrid"> Grid — show grid on the field</label>
+            <label class="set-row"><input type="checkbox" id="setMouse"> Mouse control — move toward cursor</label>
+            <label class="set-row"><input type="checkbox" id="setZone"> Zone label — show which zone you are in</label>
+            <label class="set-row"><input type="checkbox" id="setMinimap"> Minimap — show in the corner of the screen</label>
+            <label class="set-row"><input type="checkbox" id="setHitMobs"> Mob hitboxes — show mob hitboxes</label>
+            <label class="set-row"><input type="checkbox" id="setHitBossPetals"> Boss shape hitboxes — show boss shape hitboxes</label>
+            <label class="set-row"><input type="checkbox" id="setHitPlayerPetals"> Player shape hitboxes — show player shape hitboxes</label>
+            <label class="set-row"><input type="checkbox" id="setHitPlayers"> Player hitboxes — show player hitboxes</label>
+            <p class="set-note">If «Mouse control» is off — movement on WASD or Arrow keys (default).</p>
+            <button id="settingsCloseBtn">Done</button>
+        </div>
+    </div>
+
+    <!-- Игра -->
+    <div id="game" style="display: none;"></div>
+
+    <!-- Онлайн-счётчик (правый верхний угол): виден в меню и в игре -->
+    <div id="onlineBox">
+        <div id="onlineTotal">Online: 0</div>
+        <div id="onlineDetail">in game 0 · in menu 0</div>
+    </div>
+
+    <!-- Надпись зоны вверху -->
+    <div id="zoneLabel">You are in Common Zone</div>
+
+    <!-- Босс-бары: полосы HP боссов (до 4, сверху по центру) -->
+    <div id="bossHud">
+        <div class="boss-entry">
+            <div class="boss-title"><span class="boss-rarity"></span> <span class="boss-name"></span></div>
+            <div class="boss-track">
+                <div class="boss-bg"></div>
+                <div class="boss-fill"></div>
+                <div class="boss-shine"></div>
+                <div class="boss-text">0 / 0</div>
+            </div>
+        </div>
+        <div class="boss-entry">
+            <div class="boss-title"><span class="boss-rarity"></span> <span class="boss-name"></span></div>
+            <div class="boss-track">
+                <div class="boss-bg"></div>
+                <div class="boss-fill"></div>
+                <div class="boss-shine"></div>
+                <div class="boss-text">0 / 0</div>
+            </div>
+        </div>
+        <div class="boss-entry">
+            <div class="boss-title"><span class="boss-rarity"></span> <span class="boss-name"></span></div>
+            <div class="boss-track">
+                <div class="boss-bg"></div>
+                <div class="boss-fill"></div>
+                <div class="boss-shine"></div>
+                <div class="boss-text">0 / 0</div>
+            </div>
+        </div>
+        <div class="boss-entry">
+            <div class="boss-title"><span class="boss-rarity"></span> <span class="boss-name"></span></div>
+            <div class="boss-track">
+                <div class="boss-bg"></div>
+                <div class="boss-fill"></div>
+                <div class="boss-shine"></div>
+                <div class="boss-text">0 / 0</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Миникарта -->
+    <canvas id="minimap" width="210" height="210"></canvas>
+
+    <!-- Чат -->
+    <div id="chat">
+        <div id="chatButton">
+            <span class="dot"></span>
+            <span>Chat</span>
+        </div>
+        <div id="chatWindow">
+            <div id="chatSearchRow">
+                <input id="chatSearch" type="text" maxlength="60" placeholder="Search chat..." autocomplete="off">
+            </div>
+            <div id="chatLog"></div>
+            <input id="chatInput" type="text" maxlength="120" placeholder="Type a message (Enter — send)..." autocomplete="off">
+        </div>
+    </div>
+
+<!-- Инвентарь внутри игры: круглые кнопки-иконки (крафт — «шестерёнка/колесо»,
+         shapes — сетка). Клик открывает панель, как во флор. -->
+    <button id="gameInvBtn" title="Shapes (I)">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" aria-hidden="true">
+            <rect x="3.5" y="3.5" width="7" height="7" rx="1.6"/>
+            <rect x="13.5" y="3.5" width="7" height="7" rx="1.6"/>
+            <rect x="3.5" y="13.5" width="7" height="7" rx="1.6"/>
+            <rect x="13.5" y="13.5" width="7" height="7" rx="1.6"/>
+        </svg>
+    </button>
+    <button id="gameCraftBtn" title="Craft (C)">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="3.4"/>
+            <path d="M12 3v2.6M12 18.4V21M3 12h2.6M18.4 12H21"/>
+            <path d="M5.64 5.64l1.84 1.84M16.52 16.52l1.84 1.84M18.36 5.64l-1.84 1.84M7.48 16.52l-1.84 1.84"/>
+        </svg>
+    </button>
+    <div id="gameInvPanel">
+        <div id="gameInvTitle"><span>Shapes</span><button id="gameInvClose">✕</button></div>
+        <div id="gameInvSearchRow">
+            <input id="gameInvSearch" type="text" maxlength="40" placeholder="Search shapes..." autocomplete="off">
+        </div>
+        <div id="gameInvHint">Drag to the hotbar below · click = equip to free slot · right-click = drop</div>
+        <div id="gameInvBody"></div>
+    </div>
+
+    <!-- Окно крафта (катушка) — общий для меню и ИГРЫ (внутриигровая кнопка). -->
+    <div id="craftPanel">
+        <button id="craftCloseBtn">✕</button>
+        <div id="craftPanelTitle">Craft</div>
+        <div id="craftHint">Click a shape on the right to add it to the wheel</div>
+        <div id="craftColumns">
+            <div id="craftWheelCol">
+                <div id="craftSpinner">
+                    <div id="craftSpinnerInner"><div id="craftWheelBand"></div></div>
+                    <div id="craftHub">
+                        <div id="craftCenterIcon"></div>
+                        <div id="craftCenterCount"></div>
+                    </div>
+                </div>
+                <div id="craftPileCount">Added: 0</div>
+                <div id="craftPileInfo">—</div>
+                <div id="craftChance"></div>
+                <button id="craftResetBtn" title="Reset the wheel (return shapes to inventory)">Reset</button>
+            </div>
+            <div id="craftInvCol">
+                <div id="craftInvColTitle">Craft inventory</div>
+                <div id="craftInventory"></div>
+            </div>
+        </div>
+        <button id="craftBtnInner"></button>
+        <div id="craftResult"></div>
+    </div>
+
+    <!-- Всплывающие уведомления чата (видны при закрытом чате) -->
+    <div id="chatToast"></div>
+
+    <!-- Админ-панель (видна только админу) -->
+    <button id="adminBtn">Admin</button>
+    <div id="adminBadge">
+        <span class="ab-item" id="abGod" style="display:none">🛡 Invulnerable</span>
+        <span class="ab-item" id="abInvis" style="display:none">👁 Invisible</span>
+        <span class="ab-item" id="abPassive" style="display:none">🕊 Passive</span>
+        <span class="ab-item" id="abPvp" style="display:none">⚔ Team 1 (hostile)</span>
+        <span class="ab-item" id="abMobTeam" style="display:none">👾 Team 2 (mobs)</span>
+        <span class="ab-item" id="abOneShot" style="display:none">💥 One-shot</span>
+    </div>
+    <div id="adminPanel">
+        <h3>Admin Panel</h3>
+        <div class="adm-sec">
+            <div class="adm-lbl">Announce to all players</div>
+            <input id="admAnnounce" type="text" placeholder="Announcement text..." maxlength="200">
+            <button class="adm-btn" id="admAnnounceBtn">Send announcement</button>
+        </div>
+        <div class="adm-sec">
+            <div class="adm-lbl">Your status</div>
+            <button class="adm-btn" id="admGodBtn">Invulnerability: on/off</button>
+            <button class="adm-btn" id="admInvisibleBtn">Invisibility: on/off</button>
+            <button class="adm-btn" id="admPassiveBtn">Passivity: on/off</button>
+            <button class="adm-btn" id="admPvpBtn">Team 1 (hostile): on/off</button>
+            <button class="adm-btn" id="admMobTeamBtn">Team 2 (mob team): on/off</button>
+            <button class="adm-btn" id="admOneShotBtn">One-shot body: on/off</button>
+            <button class="adm-btn" id="admGridBtn">Grid: on/off</button>
+            <div class="adm-zone-row">
+                <button class="adm-btn" id="admSizeDec">Size −</button>
+                <button class="adm-btn" id="admSizeInc">Size +</button>
+            </div>
+        </div>
+        <div class="adm-sec">
+            <div class="adm-lbl">Camera view distance</div>
+            <input id="admViewSlider" type="range" min="300" max="5000" value="1500" style="width:100%">
+            <div style="display:flex;justify-content:space-between;font-size:11px;color:#8a93a6">
+                <span>300 (closer)</span>
+                <span id="admViewLabel">1500</span>
+                <span>whole zone</span>
+            </div>
+        </div>
+<div class="adm-sec">
+            <div class="adm-lbl">Teleport to player (by nick)</div>
+            <input id="admTeleportInput" type="text" placeholder="Player nick...">
+            <button class="adm-btn" id="admTeleportBtn">Teleport</button>
+            <div class="adm-lbl" style="margin-top:8px">Teleport player to me (by nick)</div>
+            <input id="admPullInput" type="text" placeholder="Player nick...">
+            <button class="adm-btn" id="admPullBtn">Pull to me</button>
+        </div>
+        <div class="adm-sec">
+            <div class="adm-lbl">Teleport to safe zone center (first-tier zones)</div>
+            <div class="adm-zone-row">
+                <button class="adm-btn adm-zone-btn adm-safe-btn" data-zone="7">Chaos</button>
+                <button class="adm-btn adm-zone-btn adm-safe-btn" data-zone="6">Fractal</button>
+                <button class="adm-btn adm-zone-btn adm-safe-btn" data-zone="5">Hexagon</button>
+                <button class="adm-btn adm-zone-btn adm-safe-btn" data-zone="4">Pentagon</button>
+                <button class="adm-btn adm-zone-btn adm-safe-btn" data-zone="3">Square</button>
+                <button class="adm-btn adm-zone-btn adm-safe-btn" data-zone="2">Triangle</button>
+                <button class="adm-btn adm-zone-btn adm-safe-btn" data-zone="1">Line</button>
+                <button class="adm-btn adm-zone-btn adm-safe-btn" data-zone="0">Point</button>
+            </div>
+        </div>
+        <div class="adm-sec">
+            <div class="adm-lbl">Teleport to zone center</div>
+            <div class="adm-zone-row">
+                <button class="adm-btn adm-zone-btn" data-zone="7">Chaos</button>
+                <button class="adm-btn adm-zone-btn" data-zone="6">Fractal</button>
+                <button class="adm-btn adm-zone-btn" data-zone="5">Hexagon</button>
+                <button class="adm-btn adm-zone-btn" data-zone="4">Pentagon</button>
+                <button class="adm-btn adm-zone-btn" data-zone="3">Square</button>
+                <button class="adm-btn adm-zone-btn" data-zone="2">Triangle</button>
+                <button class="adm-btn adm-zone-btn" data-zone="1">Line</button>
+                <button class="adm-btn adm-zone-btn" data-zone="0">Point</button>
+                <button class="adm-btn adm-zone-btn" data-zone="15">Chaos II</button>
+                <button class="adm-btn adm-zone-btn" data-zone="14">Fractal II</button>
+                <button class="adm-btn adm-zone-btn" data-zone="13">Hexagon II</button>
+                <button class="adm-btn adm-zone-btn" data-zone="12">Pentagon II</button>
+                <button class="adm-btn adm-zone-btn" data-zone="11">Square II</button>
+                <button class="adm-btn adm-zone-btn" data-zone="10">Triangle II</button>
+                <button class="adm-btn adm-zone-btn" data-zone="9">Line II</button>
+                <button class="adm-btn adm-zone-btn" data-zone="8">Point II</button>
+                <button class="adm-btn adm-zone-btn" data-zone="16">TestRoom</button>
+            </div>
+        </div>
+        <div class="adm-sec">
+            <div class="adm-lbl">Give yourself shapes</div>
+            <select id="admGpKind">
+                <option value="oval">Oval</option>
+                <option value="thorns">Thorns</option>
+                <option value="rock">Rock</option>
+                <option value="ball">Ball</option>
+                <option value="orb">Orb</option>
+                <option value="pebble">Pebble</option>
+                <option value="shard">Shard</option>
+                <option value="cog">Cog</option>
+                <option value="blade">Blade</option>
+                <option value="viper">Viper</option>
+                <option value="cube">Cube</option>
+                <option value="bulwark">Bulwark</option>
+                <option value="penta">Penta</option>
+                <option value="shield">Shield</option>
+                <option value="hex">Hex</option>
+                <option value="hiveling">Hiveling</option>
+                <option value="fractalite">Fractalite</option>
+                <option value="spark">Spark</option>
+                <option value="fragwall">Fragwall</option>
+                <option value="void">Void</option>
+                <option value="entropy">Entropy</option>
+                <option value="singularity">Singularity</option>
+                <option value="whirl">Whirl</option>
+                <option value="tear">Tear</option>
+                <option value="line">Line</option>
+                <option value="compass">Compass</option>
+                <option value="saturn">Saturn</option>
+                <option value="rune">Rune</option>
+                <option value="eye">Eye</option>
+                <option value="spike">Spike</option>
+                <option value="rhombus">Rhombus</option>
+            </select>
+            <select id="admGpRarity">
+                <option value="0">Point</option>
+                <option value="1">Line</option>
+                <option value="2">Triangle</option>
+                <option value="3">Square</option>
+                <option value="4">Polygon</option>
+                <option value="5">Hexagon</option>
+                <option value="6">Fractal</option>
+                <option value="7">Chaos</option>
+            </select>
+            <input id="admGpCount" type="number" value="1" min="1" max="999">
+            <button class="adm-btn" id="admGivePetalsBtn">Give</button>
+        </div>
+        <div class="adm-sec">
+            <div class="adm-lbl">Give yourself XP</div>
+            <input id="admXP" type="number" value="100" min="1">
+            <button class="adm-btn" id="admXPBtn">Give XP</button>
+        </div>
+        <div class="adm-sec">
+            <div class="adm-lbl">Spawn a mob (at your position)</div>
+            <select id="admKind">
+                <option value="dot">Dot</option>
+                <option value="pebble">Pebble</option>
+                <option value="dart">Dart</option>
+                <option value="spinner">Spinner</option>
+                <option value="triangle">Triangle</option>
+                <option value="arrow">Arrow</option>
+                <option value="square">Square</option>
+                <option value="block">Block</option>
+                <option value="pentagon">Pentagon</option>
+                <option value="shield">Shield</option>
+                <option value="hexagon">Hexagon</option>
+                <option value="hive">Hive</option>
+                <option value="actal">Actal</option>
+                <option value="fragspark">FragSpark</option>
+                <option value="fragwall">FragWall</option>
+                <option value="void">Void</option>
+                <option value="entropy">Entropy</option>
+                <option value="beads">Beads</option>
+                <option value="tear">Tear</option>
+                <option value="comet">Comet</option>
+                <option value="beam">Beam</option>
+                <option value="spike">Spike</option>
+                <option value="cross">Cross</option>
+                <option value="star">Star</option>
+                <option value="aeon">Aeon</option>
+                <option value="rune">Rune</option>
+                <option value="cog">Cog</option>
+                <option value="sun">Sun</option>
+                <option value="mote">Mote</option>
+                <option value="saturn">Saturn</option>
+                <option value="eye">Eye</option>
+                <option value="galaxy">Galaxy</option>
+                <option value="blackhole">Black Hole</option>
+                <option value="prism">Prism</option>
+            </select>
+            <select id="admMobType">
+                <option value="nothing">Nothing</option>
+                <option value="gold">Gold (Shiny)</option>
+            </select>
+            <select id="admRarity">
+                <option value="0">Point</option>
+                <option value="1">Line</option>
+                <option value="2">Triangle</option>
+                <option value="3">Square</option>
+                <option value="4">Polygon</option>
+                <option value="5">Hexagon</option>
+                <option value="6">Fractal</option>
+                <option value="7">Chaos</option>
+            </select>
+            <button class="adm-btn" id="admSpawnBtn">Spawn mob</button>
+        </div>
+        <div class="adm-sec">
+            <div class="adm-lbl">Players online</div>
+            <div id="admPlayers"></div>
+            <button class="adm-btn" id="admRefreshBtn">Refresh list</button>
+        </div>
+        <div class="adm-sec">
+            <div class="adm-lbl">Ban / unban by nick</div>
+            <input id="admUnbanNick" type="text" placeholder="Player nick...">
+            <button class="adm-btn" id="admUnbanBtn">Unban</button>
+        </div>
+        <div class="adm-sec">
+            <div class="adm-lbl">Mobs in zones</div>
+            <div id="admMobs"></div>
+            <button class="adm-btn" id="admMobsRefreshBtn">Refresh mobs</button>
+        </div>
+        <div class="adm-sec">
+            <div class="adm-lbl">My speed (px/s, default 200)</div>
+            <input id="admSpeed" type="number" value="200" min="1">
+            <button class="adm-btn" id="admSpeedBtn">Apply speed</button>
+        </div>
+        <div class="adm-sec">
+            <div class="adm-lbl">My health (default 10)</div>
+<input id="admHP" type="number" value="20" min="1">
+            <button class="adm-btn" id="admHPBtn">Apply health</button>
+        </div>
+        <div id="adminAck"></div>
+    </div>
+
+    <!-- Экран перехода -->
+    <div id="transfer">
+        <div class="box">
+            <div class="t-title" id="transferText">Transferring...</div>
+        </div>
+    </div>
+
+    <!-- Кнопка выхода в меню (верхний правый угол) -->
+    <button id="exitToMenuBtn" title="Exit to menu">✕</button>
+
+    <!-- Индикатор игрока (сверху слева): кружок игрока + ник + полоска HP -->
+    <div id="playerHud">
+        <div id="playerAvatar">
+            <div id="playerAvatarDot"></div>
+        </div>
+        <div id="playerInfo">
+            <div id="playerNick">-</div>
+            <div id="shieldBar" style="display:none"><div id="shieldFill"></div></div>
+            <div id="hpBar">
+                <div id="hpFillWrap">
+                    <div id="hpFill"></div>
+                    <div id="hpText">50 / 50</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Шкала опыта игрока -->
+    <div id="xpBar">
+        <div id="xpFillWrap">
+            <div id="xpFill"></div>
+            <div id="xpText">Lv. 0 — XP: 0 / 30</div>
+        </div>
+    </div>
+
+    <!-- Хотбар в игре (активная линейка; X переключает 1/2) -->
+    <div id="gameHotbar">
+        <div id="gameHotbarLabel">Hotbar 1</div>
+        <div id="gameHotbarBar"></div>
+    </div>
+
+    <!-- Баннер и HUD волн (волновой режим) -->
+    <div id="waveBanner"><div id="waveBannerMain"></div><div class="wave-sub" id="waveBannerSub"></div></div>
+    <div id="waveHudTop">
+        <div id="waveHudTitle">Wave 1</div>
+        <div id="waveBarWrap">
+            <div id="waveBarLayer1"></div>
+            <div id="waveBarLayer2"></div>
+        </div>
+        <div id="waveRoster"></div>
+    </div>
+    <!-- Профили членов команды (слева, под своим профилем) -->
+    <div id="teamPanel"></div>
+    <div id="startCountdown"><div id="scNum">5</div><div class="sc-sub">Starting in...</div></div>
+
+    <!-- Экран смерти -->
+    <div id="death">
+        <h2 id="deathTitle">You Died!</h2>
+        <div id="deathSub" style="color:#9fb2d0;font-size:14px;display:none;"></div>
+        <div id="deathWaveLine"></div>
+        <div class="btn-group">
+            <button id="respawnBtn">Respawn</button>
+            <button id="menuBtn">Return to Main Menu</button>
+        </div>
+    </div>
+
+    <!-- Экран загрузки (плавный переход на чёрный при входе/выходе) -->
+    <div id="loading">
+        <div class="loader-spinner"></div>
+        <div class="loader-text" id="loadingText">Loading...</div>
+    </div>
+
+    <!-- Пилюля-тултип петаля (название/редкость/способность/HP/DMG) -->
+    <div id="petalTip"></div>
+
+    <!-- PixiJS + клиент -->
+    <script src="https://cdn.jsdelivr.net/npm/pixi.js@7.x/dist/pixi.min.js"></script>
+    <script src="js/main.js?v=188"></script>
+    <script src="js/lobby.js?v=1"></script>
+</body>
+</html>
+
