@@ -83,6 +83,7 @@ type Room struct {
 	waveHoldT         float64 // остаток hold-таймера (второй слой волны-бара)
 	waveRarFloor      int
 	waveRarCeil       int
+	waveArenaR        float64 // текущий радиус арены (растёт с волной, 2.0)
 	stopCh            chan struct{} // закрытие комнаты лобби: остановка gameLoop/autosave
 }
 
@@ -308,17 +309,16 @@ func (r *Room) spawnSuperBoss(zone int, rar int) {
 	}
 }
 
-// superSpawnText возвращает текст уведомления, если заспавнился Fractal (6)
-// или Chaos (7) моб. Оба возможны в верхней полосе ЛЮБОЙ зоны — уведомляем всегда.
+// superSpawnText возвращает текст уведомления, если заспавнился моб
+// Fractal-тира и выше (6..15). В волнах 2.0 верх лестницы — Origin; имя тира
+// берётся из реестра rarityNames.
 func superSpawnText(zone int, m Mob) string {
+	if m.Rarity < rarityFractal || m.Rarity >= len(rarityNames) {
+		return ""
+	}
 	// Подвид моба: к имени добавляется префикс (и у обычных, и у боссов).
-	if m.Rarity >= rarityChaos {
-		return "A Chaos " + variantPrefix(m.Variant) + mobTypes[m.Type].Name + " has spawned!"
-	}
-	if m.Rarity == rarityFractal {
-		return "A Fractal " + variantPrefix(m.Variant) + mobTypes[m.Type].Name + " has spawned!"
-	}
-	return ""
+	return "A " + rarityNames[m.Rarity] + " " + variantPrefix(m.Variant) +
+		mobTypes[m.Type].Name + " has spawned!"
 }
 
 func (r *Room) gameLoop() {
@@ -2211,12 +2211,19 @@ func (r *Room) awardMobKill(m *Mob) {
 			// Singularity не выпал — дропа нет ни у кого.
 		} else {
 			extra := 0
-			switch m.Rarity {
-			case rarityFractal:
+			switch {
+			case m.Rarity >= 8:
+				// Истинная лестница (Dot..Origin, 2.0): босс-тиры дают
+				// гарантированную бонусную пачку, Origin — двойную.
+				extra = 1
+				if rand.Float64() < 0.5 {
+					extra = 2
+				}
+			case m.Rarity == rarityFractal:
 				if rand.Float64() < 0.35 {
 					extra = 1
 				}
-			case rarityChaos:
+			case m.Rarity == rarityChaos:
 				if rand.Float64() < 0.5 {
 					extra = 1
 				}
@@ -2245,12 +2252,17 @@ func (r *Room) awardMobKill(m *Mob) {
 			// Боссы Fractal/Chaos кидают «бонусную пачку»: Fractal — 35% шанс
 			// на +1 петаль, Chaos — 50% на +1 и ещё 20% на +2.
 			extra := 0
-			switch m.Rarity {
-			case rarityFractal:
+			switch {
+			case m.Rarity >= 8:
+				extra = 1
+				if rand.Float64() < 0.5 {
+					extra = 2
+				}
+			case m.Rarity == rarityFractal:
 				if rand.Float64() < 0.35 {
 					extra = 1
 				}
-			case rarityChaos:
+			case m.Rarity == rarityChaos:
 				if rand.Float64() < 0.5 {
 					extra = 1
 				}

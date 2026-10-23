@@ -5,19 +5,64 @@ package main
 import "testing"
 
 func TestWaveSpecialFor(t *testing.T) {
+	// 2.0: каждая 10-я — босс лестницы, каждая 25-я (не кратная 10) — элита.
 	cases := map[int]string{
 		1: "", 3: "", 4: "",
 		5:  "swarm",
-		10: "fractal",
+		10: "boss",
 		15: "hunters",
-		20: "fractal",
-		25: "tanks",
-		30: "fractal",
+		20: "boss",
+		25: "elite",
+		30: "boss",
+		75: "elite",
 	}
 	for n, want := range cases {
 		if got := waveSpecialFor(n); got != want {
 			t.Errorf("waveSpecialFor(%d) = %q, want %q", n, got, want)
 		}
+	}
+}
+
+func TestWaveLadder(t *testing.T) {
+	// Лестница боссов 2.0: 10 -> Hexagon(5), 30 -> Chaos(7), 40 -> Dot(8),
+	// 110+ -> Origin(15).
+	if got := bossRarityFor(10); got != 5 {
+		t.Errorf("bossRarityFor(10) = %d, want 5", got)
+	}
+	if got := bossRarityFor(30); got != 7 {
+		t.Errorf("bossRarityFor(30) = %d, want 7", got)
+	}
+	if got := bossRarityFor(40); got != 8 {
+		t.Errorf("bossRarityFor(40) = %d, want 8 (Dot)", got)
+	}
+	if got := bossRarityFor(110); got != 15 {
+		t.Errorf("bossRarityFor(110) = %d, want 15 (Origin)", got)
+	}
+	// Полная лестница: Origin в потолке с волны 28, Dot в пуле с ~16-й.
+	if _, ceil := waveRarityFor(28); ceil != 15 {
+		t.Errorf("waveRarityFor(28) ceil = %d, want 15", ceil)
+	}
+	if _, ceil := waveRarityFor(16); ceil != 9 {
+		t.Errorf("waveRarityFor(16) ceil = %d, want 9 (Dot+)", ceil)
+	}
+	// Пулы истинной лестницы валидны.
+	for rar := 8; rar <= 15; rar++ {
+		pool := waveTrueLadderPool(rar)
+		if len(pool) == 0 {
+			t.Fatalf("waveTrueLadderPool(%d) empty", rar)
+		}
+		for _, k := range pool {
+			if _, ok := mobTypes[k]; !ok {
+				t.Fatalf("waveTrueLadderPool(%d): unknown mob %q", rar, k)
+			}
+		}
+	}
+	// Арена растёт и capped.
+	if got := arenaRadiusFor(0); got != waveArenaRadius {
+		t.Errorf("arenaRadiusFor(0) = %v, want %v", got, waveArenaRadius)
+	}
+	if got := arenaRadiusFor(200); got != waveArenaMaxR {
+		t.Errorf("arenaRadiusFor(200) = %v, want %v", got, waveArenaMaxR)
 	}
 }
 

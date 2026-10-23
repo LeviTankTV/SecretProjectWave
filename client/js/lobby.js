@@ -77,7 +77,9 @@ const specialNames = {
     swarm: 'SWARM — many small fast mobs',
     tanks: 'TANKS — heavy high-rarity mobs',
     hunters: 'HUNTERS — aggressive chasers',
-    fractal: 'BOSS — a Fractal has awakened',
+    boss: 'BOSS — a ladder boss has awakened',
+    elite: 'ELITE — every mob is a variant (gold/ring/star/crescent)',
+    fractal: 'BOSS — a ladder boss has awakened',
 };
 
 // --- Открытие/закрытие оверлея ---

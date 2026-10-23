@@ -1,10 +1,15 @@
 package main
 
-// waves.go - волновой режим: директор волн вместо зонного спавна мобов.
-// Каждое лобби получает собственную комнату (newWaveRoom) с одной ареной
-// (зона 0). Мобы спавнятся пачками до конца волны; после зачистки — пауза
-// и следующая волна с более высокими редкостями. Каждые 5 волн — спец-волна,
-// каждая 10-я — босс.
+// waves.go - волновой режим 2.0: директор волн вместо зонного спавна мобов.
+// Каждое лобби получает собственную комнату (newWaveRoom) с одной ареной.
+// Мобы спавнятся пачками до конца волны; после зачистки — пауза и следующая
+// волна с более высокими редкостями. Каждые 5 волн — спец-волна (ротация
+// swarm/tanks/hunters), каждая 10-я — БОСС-волна лестницы (Hexagon -> Fractal
+// -> Chaos -> Dot -> ... -> Origin), каждая 25-я (не кратная 10) — ЭЛИТНАЯ
+// волна подвидов (golden horde и др.).
+//
+// Волны 2.0 (порт «новой реальности»): полная лестница 16 редкостей —
+// Dot впервые в пуле на ~16-й волне, Origin как потолок к ~28-60-й.
 
 import (
 	"encoding/json"
@@ -13,17 +18,48 @@ import (
 	"math/rand"
 )
 
-// Параметры волнового режима.
+// Параметры волнового режима 2.0.
 const (
-	waveBreakDuration = 3.0   // пауза между волнами
+	waveBreakDuration = 3.0  // пауза между обычными волнами
+	waveSpecialBreak  = 5.0  // пауза после спец-волны
+	waveBossBreak     = 10.0 // пауза после босс-волны (лобби готовится)
 	waveStartBreak    = 5.0  // секунд до первой волны после старта
-	waveMaxRarity     = rarityChaos // потолок редкостей волн (пока Chaos; этап 6 поднимет до Origin)
+	waveMaxRarity     = 15   // Origin — потолок лестницы волн 2.0
 	waveSpawnNearDist = 350  // мобы появляются не дальше этого от случайного игрока
 	waveSpawnSafeDist = 300.0 // ...но не ближе этого к живому игроку (не на голове)
-	waveArenaRadius   = 1300 // радиус круглой арены (фиксированный, от волны не растёт)
+	waveArenaRadius   = 1300 // стартовый радиус круглой арены
+	waveArenaMaxR     = 2200 // потолок радиуса (рост +25 за каждые 5 волн)
+	waveArenaGrowStep = 25.0
 	waveHoldDuration  = 20.0 // hold-слой: сколько секунд даётся на добивание после полного спавна
 	waveClearAliveMax = 5    // живых ≤5 при полном спавне — волна сразу завершена
 )
+
+// waveTrueLadderPool — пул «древних стражей» для редкостей ИСТИННОЙ лестницы
+// (8..15, порт родителя): Bud/Marble (Origin of Point), Lancer/Javelin
+// (Origin of Line), Darter/SpikeLance (вершина). Смешиваются 50/50 с обычным
+// пулом зоны: истинные тиры ощущаются «чужими», но не заменяют биом арены.
+func waveTrueLadderPool(rar int) []string {
+	switch {
+	case rar <= 9:
+		return []string{"bud", "marble"}
+	case rar <= 11:
+		return []string{"lancer", "javelin"}
+	case rar <= 13:
+		return []string{"darter", "spikelance", "bud", "marble"}
+	default:
+		return []string{"darter", "spikelance", "lancer", "javelin", "bud", "marble"}
+	}
+}
+
+// bossRarityFor — редкость босса n/10-й босс-волны: лестница Hexagon(10) ->
+// Fractal(20) -> Chaos(30) -> Dot(40) -> Vector(50) -> ... -> Origin(110+).
+func bossRarityFor(n int) int {
+	b := n/10 + 4
+	if b > waveMaxRarity {
+		b = waveMaxRarity
+	}
+	return b
+}
 
 // waveArenaCenterIn — центр круглой арены выбранной зоны (0-7).
 func waveArenaCenterIn(zone int) (float64, float64) {
@@ -34,12 +70,18 @@ func waveArenaCenterIn(zone int) (float64, float64) {
 	return z.X + z.W/2, z.Y + z.H/2
 }
 
-// clampArenaIn прижимает точку (с радиусом тела r) внутрь круглой арены зоны.
+// clampArenaIn прижимает точку (с радиусом тела r) внутрь круглой арены зоны
+// (радиус по умолчанию; рост арены волн 2.0 — r.clampArenaR).
 func clampArenaIn(zone int, x, y, r float64) (float64, float64) {
+	return clampArenaInR(zone, x, y, r, waveArenaRadius)
+}
+
+// clampArenaInR — то же с явным радиусом арены.
+func clampArenaInR(zone int, x, y, r, arenaR float64) (float64, float64) {
 	cx, cy := waveArenaCenterIn(zone)
 	dx, dy := x-cx, y-cy
 	d := dx*dx + dy*dy
-	max := waveArenaRadius - r
+	max := arenaR - r
 	if max < 0 {
 		max = 0
 	}
@@ -53,23 +95,56 @@ func clampArenaIn(zone int, x, y, r float64) (float64, float64) {
 	return cx + dx/d*max, cy + dy/d*max
 }
 
-// clampArena / waveArenaCenter — обёртки над ареной этой комнаты.
+// clampArena / waveArenaCenter — обёртки над ареной этой комнаты. Радиус —
+// динамический (растёт с номером волны, поле waveArenaR).
 func (r *Room) clampArena(x, y, rad float64) (float64, float64) {
-	return clampArenaIn(r.waveZone, x, y, rad)
+	ar := r.waveArenaR
+	if ar <= 0 {
+		ar = waveArenaRadius
+	}
+	return clampArenaInR(r.waveZone, x, y, rad, ar)
+}
+
+// waveBreakAfter — передышка после волны (2.0): боссы дают 10с на подготовку
+// и сбор дропа, спец-волны 5с, обычные 3с.
+func waveBreakAfter(n int, special string) float64 {
+	switch special {
+	case "boss":
+		return waveBossBreak
+	case "elite", "swarm", "tanks", "hunters":
+		return waveSpecialBreak
+	default:
+		return waveBreakDuration
+	}
+}
+
+// arenaRadiusFor — радиус арены на волне n: +25 за каждые 5 волн (кап 2200).
+func arenaRadiusFor(n int) float64 {
+	r := waveArenaRadius + float64(n/5)*waveArenaGrowStep
+	if r > waveArenaMaxR {
+		r = waveArenaMaxR
+	}
+	return r
 }
 
 func (r *Room) waveArenaCenter() (float64, float64) {
 	return waveArenaCenterIn(r.waveZone)
 }
 
-// waveSpecialFor выбирает тип спец-волны для волны n.
-// Каждая 10-я — босс Fractal; каждая 5-я (кроме 10-й) — ротация спец-волн.
+// waveSpecialFor выбирает тип спец-волны для волны n (2.0):
+//   - каждая 10-я — БОСС лестницы (Hexagon -> ... -> Origin, bossRarityFor);
+//   - каждая 25-я (не кратная 10) — ЭЛИТНАЯ волна подвидов (все мобы с
+//     вариантом gold/ring/star/crescent);
+//   - каждая 5-я (кроме выше) — ротация swarm/tanks/hunters.
 func waveSpecialFor(n int) string {
 	if n <= 0 {
 		return ""
 	}
 	if n%10 == 0 {
-		return "fractal"
+		return "boss"
+	}
+	if n%25 == 0 {
+		return "elite"
 	}
 	if n%5 == 0 {
 		switch (n / 5) % 3 {
@@ -84,13 +159,20 @@ func waveSpecialFor(n int) string {
 	return ""
 }
 
-// waveRarityFor — редкость моба для волны n: [floor..ceil], веса смещены к полу.
+// waveRarityFor — редкость моба для волны n (2.0): [floor..ceil], веса
+// смещены к полу. Полная лестница: Dot (~8) впервые в пуле на волне ~16
+// (ceil=9), как пол — с ~32-й; Origin (15) — потолок ceil с волны 28,
+// пол — с 60-й.
+//
+//	n=1  -> 0..1   n=8  -> 2..5    n=16 -> 4..9 (Dot!)
+//	n=12 -> 3..7   n=24 -> 6..13   n=28 -> 7..15 (Origin в потолке)
+//	n=40 -> 10..15 n=60+ -> 14..15
 func waveRarityFor(n int) (floor, ceil int) {
-	floor = n / 6
+	floor = n / 4
 	if floor > waveMaxRarity-1 {
 		floor = waveMaxRarity - 1
 	}
-	ceil = n/3 + 1
+	ceil = n/2 + 1
 	if ceil > waveMaxRarity {
 		ceil = waveMaxRarity
 	}
@@ -132,14 +214,44 @@ func (r *Room) spawnWaveMob() {
 	case "tanks":
 		tname = []string{"square", "block"}[rand.Intn(2)]
 	case "hunters":
-		tname = []string{"dart", "arrow"}[rand.Intn(2)]
+		if rar >= 8 {
+			tname = []string{"dart", "arrow", "darter"}[rand.Intn(3)]
+		} else {
+			tname = []string{"dart", "arrow"}[rand.Intn(2)]
+		}
 		if rar < 1 {
 			rar = 1
+		}
+	}
+	// Истинная лестница (8..15): 50/50 древние стражи или пул зоны.
+	if rar >= 8 && r.waveSpecial != "swarm" && r.waveSpecial != "tanks" && r.waveSpecial != "hunters" {
+		if rand.Intn(2) == 0 {
+			pool := waveTrueLadderPool(rar)
+			tname = pool[rand.Intn(len(pool))]
 		}
 	}
 	r.waveToSpawn--
 	r.waveSpawned++
 	if m, ok := r.spawnWaveMobAt(tname, rar); ok {
+		// Элитная волна: каждому мобу — гарантированный подвид (годролл золота ~15%).
+		if r.waveSpecial == "elite" {
+			if m.Variant == "" {
+				if rand.Float64() < 0.15 {
+					m.Variant = "gold"
+				} else {
+					vs := []string{"ring", "star", "crescent"}
+					m.Variant = vs[rand.Intn(len(vs))]
+				}
+				scaleMobForRarity(&m, m.Rarity)
+				// В срезе уже лежит копия ДО варианта: переписываем её.
+				for i := range r.mobs {
+					if r.mobs[i].ID == m.ID {
+						r.mobs[i] = m
+						break
+					}
+				}
+			}
+		}
 		if txt := superSpawnText(r.waveZone, m); txt != "" {
 			r.broadcastSystemLocked("super", txt)
 		}
@@ -266,13 +378,24 @@ func (r *Room) startWave(n int) {
 		r.waveToSpawn = 12 + n*2
 		r.waveMaxAlive = 14
 		r.waveSpawnInterval = 0.8
-	case "fractal":
-		// Босс: сразу один Fractal-моб + немного обычных мобов зоны.
+		// Охотники истинной лестницы: на высоких волнах в пул входит Darter.
+	case "elite":
+		// Элитная волна подвидов: обычный объём, но каждый моб — вариант.
+		r.waveToSpawn = 10 + n
+		r.waveMaxAlive = 12 + n/2
+		r.waveSpawnInterval = 1.0
+	case "boss":
+		// Босс лестницы (2.0): Hexagon(10) -> Fractal -> Chaos -> Dot -> ...
+		// -> Origin(110+). Сразу один босс-тир + свита из мобов зоны.
 		r.waveToSpawn = 4 + n
 		r.waveMaxAlive = 12
 		r.waveSpawnInterval = 1.0
+		bossRar := bossRarityFor(n)
+		if bossRar > ceil {
+			ceil = bossRar
+		}
 		tname := randMobType(r.waveZone)
-		if m, ok := r.spawnWaveMobAt(tname, rarityFractal); ok {
+		if m, ok := r.spawnWaveMobAt(tname, bossRar); ok {
 			if txt := superSpawnText(r.waveZone, m); txt != "" {
 				r.broadcastSystemLocked("super", txt)
 			}
@@ -286,6 +409,8 @@ func (r *Room) startWave(n int) {
 		}
 	}
 	r.waveRarFloor, r.waveRarCeil = floor, ceil
+	// Арена растёт с волной (2.0): +25 радиуса за каждые 5 волн, кап 2200.
+	r.waveArenaR = arenaRadiusFor(n)
 	r.waveSpawnT = 1.0
 	r.wavePending = false
 	// Wave bar: параметры прогресса спавна и hold-таймера.
@@ -376,7 +501,7 @@ func (r *Room) updateWaves(dt float64) {
 	if alive <= waveClearAliveMax {
 		r.waveRunning = false
 		r.waveHoldT = 0
-		r.waveBreakT = waveBreakDuration
+		r.waveBreakT = waveBreakAfter(r.waveNum, r.waveSpecial)
 		r.broadcastWaveState("clear")
 		return
 	}
@@ -385,7 +510,7 @@ func (r *Room) updateWaves(dt float64) {
 		// Принудительный запуск следующей волны: выжившие мобы убираются.
 		r.waveRunning = false
 		r.clearWaveMobs()
-		r.waveBreakT = waveBreakDuration
+		r.waveBreakT = waveBreakAfter(r.waveNum, r.waveSpecial)
 		r.broadcastWaveState("clear")
 	}
 }
