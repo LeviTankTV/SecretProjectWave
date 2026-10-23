@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"log"
+	"strconv"
 	"strings"
 	"time"
 
@@ -43,6 +44,8 @@ type User struct {
 	// старая линейная кривая 30+12×L, конвертируется при первой загрузке.
 	XPTotal float64 `bson:"xp_total,omitempty"`
 	ProgVer int     `bson:"prog_ver,omitempty"`
+	// Волновые достижения (2.0): айди заработанных милстоунов волны.
+	Achievements []string `bson:"achievements,omitempty"`
 }
 
 var usersCollection *mongo.Collection
@@ -330,6 +333,37 @@ func bumpBestWave(nick string, w int) {
 	usersCollection.UpdateOne(ctx,
 		bson.M{"nick": nick, "best_wave": bson.M{"$lt": w}},
 		bson.M{"$set": bson.M{"best_wave": w}})
+	// Волновые достижения (2.0): милстоуны волны 10/25/50/100 добавляются
+	// идемпотентно ($addToSet) при обновлении рекорда.
+	for _, id := range waveAchievementsFor(w) {
+		actx, acancel := context.WithTimeout(context.Background(), 2*time.Second)
+		usersCollection.UpdateOne(actx,
+			bson.M{"nick": nick},
+			bson.M{"$addToSet": bson.M{"achievements": id}})
+		acancel()
+	}
+}
+
+// waveAchievementsFor — айди всех милстоунов, заработанных достижением волны w.
+func waveAchievementsFor(w int) []string {
+	var out []string
+	for _, m := range []int{10, 25, 50, 100} {
+		if w >= m {
+			out = append(out, "wave"+strconv.Itoa(m))
+		}
+	}
+	return out
+}
+
+// loadAchievements — список достижений игрока.
+func loadAchievements(nick string) []string {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	var u User
+	if err := usersCollection.FindOne(ctx, bson.M{"nick": nick}).Decode(&u); err != nil {
+		return nil
+	}
+	return u.Achievements
 }
 
 // loadCheckpoint возвращает сохранённую зону чекпоинта игрока (0 — Point).

@@ -1112,6 +1112,26 @@ if (data.pending) craftPending = data.pending;
                 const bw = document.getElementById('menuBestWave');
                 if (bw) bw.textContent = data.bestWave;
             }
+            // Волновые достижения (2.0): золотые чипы милстоунов 10/25/50/100.
+            const achBox = document.getElementById('menuAchievements');
+            if (achBox) {
+                const ACH = [
+                    { id: 'wave10', label: 'W10' }, { id: 'wave25', label: 'W25' },
+                    { id: 'wave50', label: 'W50' }, { id: 'wave100', label: 'W100' },
+                ];
+                const got = new Set(data.achievements || []);
+                achBox.innerHTML = '';
+                for (const a of ACH) {
+                    const el = document.createElement('span');
+                    const on = got.has(a.id);
+                    el.textContent = a.label;
+                    el.style.cssText = 'font-size:10px;font-weight:700;padding:1px 6px;border-radius:8px;'
+                        + (on ? 'color:#1a1208;background:linear-gradient(135deg,#ffd54f,#ffb300);'
+                              : 'color:#5a6478;background:rgba(255,255,255,0.07);');
+                    el.title = on ? 'Achievement earned' : 'Reach wave ' + a.label.slice(1) + ' to unlock';
+                    achBox.appendChild(el);
+                }
+            }
             updateMenuLevel();
             renderGameHotbar();
             updateCraftBtn();
@@ -1538,6 +1558,7 @@ async function doCraft() {
         // После крафта полоса всегда пустая; в центре — результат, если он был.
         drawWheelBand(null, 0, 0);
         if (successes > 0) {
+            sfx('craftWin');
             // Грейд-ревил: показываем ЛУЧШИЙ грейд из результатов (порт родителя).
             let bestPot = 0;
             for (const pd of craftPending) if ((pd.pot || 0) > bestPot) bestPot = pd.pot;
@@ -2099,15 +2120,18 @@ function connect() {
                 render(msg);
                 break;
             case 'died':
+                sfx('death');
                 showDeath();
                 break;
             case 'mobDied':
+                sfx('mobKill');
                 spawnMobFade(msg);
                 break;
             case 'chat':
                 addChatMessage(msg.name || '?', msg.text || '', msg.zone || '', msg.id || '');
                 break;
             case 'pickedUp':
+                sfx('pickup');
                 pushToast('pickup', `+ ${kindName(msg.kind)} ${msg.rarity || ''}`);
                 break;
             case 'sys':
@@ -2131,6 +2155,7 @@ function connect() {
                 renderAdminMobs(msg.zones || []);
                 break;
             case 'levelup':
+                sfx('levelup');
                 myLevel = msg.level;
                 updateMenuLevel();
                 updateXP(myLevel, myXP, myXPMax);
@@ -6328,6 +6353,15 @@ function drawMinimap() {
     mctx.strokeStyle = 'rgba(255,255,255,0.4)';
     mctx.lineWidth = 2;
     mctx.stroke();
+}
+
+// ----- Звук (порт родителя, audio.js): генеративный WebAudio-движок,
+// всё в try/catch — без контекста/жеста модуль просто молчит -----
+function sfx(name, opts) {
+    try { if (window.GameAudio) window.GameAudio.sfx(name, opts); } catch (e) {}
+}
+function uiSnd(name) {
+    try { if (window.GameAudio) window.GameAudio.ui(name); } catch (e) {}
 }
 
 // ----- Игровой цикл -----

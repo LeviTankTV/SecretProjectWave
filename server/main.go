@@ -373,7 +373,8 @@ type profileResponse struct {
 	Inventory []InvStack    `json:"inventory,omitempty"`
 	Hotbars   [2][]PetalDef `json:"hotbars,omitempty"`
 	ActiveBar int           `json:"activeBar"`
-	BestWave  int           `json:"bestWave,omitempty"` // рекорд лучшей волны
+	BestWave     int           `json:"bestWave,omitempty"` // рекорд лучшей волны
+	Achievements []string      `json:"achievements,omitempty"` // волновые достижения (2.0)
 	Pending   []PetalDef    `json:"pending,omitempty"`  // отложенные результаты крафта
 	Error     string        `json:"error,omitempty"`
 }
@@ -400,7 +401,8 @@ func handleProfile(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(profileResponse{
 		OK: true, Nick: nick, Level: lvl, XP: xp, XPMax: xpForLevel(lvl),
 		Inventory: inv, Hotbars: hotbars, ActiveBar: activeBar,
-		BestWave: loadBestWave(nick),
+		BestWave:     loadBestWave(nick),
+		Achievements: loadAchievements(nick),
 		Pending:  loadPendingCraft(nick),
 	})
 }

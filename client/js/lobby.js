@@ -782,10 +782,18 @@ function handleWaveMsg(msg) {
             resetDeathToWaveDefaults();
             const sub = specialNames[msg.special] || 'Clear all mobs';
             showWaveBanner('Wave ' + msg.num, sub, 3500);
+            // Звук (audio.js): босс-волна — «открытие врат», обычная — UI-акцент.
+            try {
+                if (window.GameAudio) {
+                    if (msg.special === 'boss') window.GameAudio.sfx('gateOpen');
+                    else window.GameAudio.ui('open');
+                }
+            } catch (e) {}
             break;
         }
         case 'clear':
             showWaveBanner('Wave ' + msg.num + ' cleared!', 'Next wave soon', 2500);
+            try { if (window.GameAudio) window.GameAudio.ui('claim'); } catch (e) {}
             break;
         case 'gameover':
             stopStartCountdown();
