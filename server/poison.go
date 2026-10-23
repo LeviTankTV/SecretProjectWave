@@ -132,7 +132,7 @@ func (r *Room) applyPoison(dt float64) {
 				pet.HP = 0
 				pet.PoisonDps = 0
 				pet.PoisonT = 0
-				pet.Recharge = petalRechargeCD(p, petalRechargeT)
+				pet.Recharge = petalRechargeCD(p, pet.Kind, petalRechargeT)
 				pet.CDMax = pet.Recharge
 				// Разрыв (hiveling): петаль, добитая ядом, тоже выстреливает осколки.
 				if petalKinds[pet.Kind].Split {

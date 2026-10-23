@@ -3,6 +3,7 @@ package main
 import (
 	"math/rand"
 	"strconv"
+	"time"
 )
 
 // ---- Крафт петалей (florr.io style) ----
@@ -14,11 +15,6 @@ import (
 // Шанс успеха (%) для перехода rarity -> rarity+1 — единый реестр:
 // server/rarity (rarity_registry.go), 15 переходов, включая Chaos→Dot 4%.
 // «Брутально редкий топ»: Point→Line 20%, Hexagon→Fractal 1%, Fractal→Chaos 1%.
-
-// maxCraftFrom — верхний исходный тир крафта. Пока петалей истинных редкостей
-// (Dot..Origin) в игре нет (появятся с волнами 2.0 / дроп-таблицами этапа 4),
-// крафт из Chaos (дал бы Dot) закрыт — как в родителе.
-const maxCraftFrom = 6
 
 // craftableRarity сообщает, можно ли крафтить пёталь этой редкости (есть ли следующая).
 func craftableRarity(rarity int) bool {
@@ -42,6 +38,19 @@ func craftSuccessChance(rarity int) float64 {
 // получил бы петаль слабее, чем Fractal сильного вида — и «тир» переставал
 // бы доминировать.
 func makeCraftPetal(kind string, rarity int) PetalDef {
+	return makeCraftPetalBy(kind, rarity, "")
+}
+
+// makeCraftPetalBy — с провенансом (ник автора; порт родителя).
+func makeCraftPetalBy(kind string, rarity int, by string) PetalDef {
+	return makeCraftPetalGraded(kind, rarity, by, -1)
+}
+
+// makeCraftPetalGraded — результат крафта с грейдом Pot (порт родителя):
+// пол и база считаются БЕЗ множителя, грейд — после. ОДИН грейд на предмет
+// множит и HP/DMG, и силу пассивки (Eff = Pot). forceGrade >= 0 — ручной
+// грейд из админки (тест PRNG) с тем же потолком тира.
+func makeCraftPetalGraded(kind string, rarity int, by string, forceGrade int) PetalDef {
 	kn := petalKinds[kind]
 	next := rarity + 1
 	dmg := kn.BaseDMG * petalPower[next]
@@ -55,17 +64,32 @@ func makeCraftPetal(kind string, rarity int) PetalDef {
 		}
 	}
 	hp := kn.BaseHP * petalPower[next]
+	pot := rollPot(next)
+	if forceGrade >= 0 {
+		if max := gradeMaxFor(next); forceGrade > max {
+			forceGrade = max
+		}
+		pot = gradePct[forceGrade]
+	}
+	eff := pot
+	k := potMult(pot)
+	dmg *= k
+	hp *= k
 	return PetalDef{
-		ID:     "craft_" + strconv.Itoa(rand.Int()),
-		Kind:   kind,
-		Rarity: next,
-		HP:     hp,
-		MaxHP:  hp,
-		DMG:    dmg,
-		Size:   petalSizeBase,
-		Color:  groundPetalColor(next),
-		Mass:   petalDefMass(next),
-		Name:   kn.Name,
+		ID:        "craft_" + strconv.Itoa(rand.Int()),
+		Kind:      kind,
+		Rarity:    next,
+		HP:        hp,
+		MaxHP:     hp,
+		DMG:       dmg,
+		Size:      petalSizeBase,
+		Color:     groundPetalColor(next),
+		Mass:      petalDefMass(next),
+		Name:      kn.Name,
+		Pot:       pot,
+		Eff:       eff,
+		CraftedBy: by,
+		CraftedAt: time.Now().Unix(),
 	}
 }
 

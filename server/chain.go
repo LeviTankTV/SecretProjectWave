@@ -311,7 +311,7 @@ func (r *Room) dashVoid(pid string) {
 			p.State.X, p.State.Y = clampPlayerInZone(p.zone, p.State.X, p.State.Y, p.State.Size)
 		}
 		// cog ускоряет перезарядку всех петалей (в т.ч. способности).
-		vch := petalRechargeCD(p, voidCooldown)
+		vch := petalRechargeCD(p, "void", voidCooldown)
 		pet.Recharge = vch
 		pet.CDMax = vch
 		return

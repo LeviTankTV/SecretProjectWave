@@ -494,8 +494,29 @@ func overdriveMult(p *Player) float64 {
 // хотбара / способности) с учётом «заводки» (cog): каждый cog умножает время
 // перезарядки на (1 - overdriveBase - overdrivePerRar×редкость), стакается,
 // кап — минимум 10% базового времени. Восстановление всех петалей скорее.
-func petalRechargeCD(p *Player, base float64) float64 {
-	return base * overdriveMult(p)
+func petalRechargeCD(p *Player, kind string, base float64) float64 {
+	m := 1.0
+	if f, ok := petalRechargeMults[kind]; ok {
+		m = f
+	}
+	return base * m * overdriveMult(p)
+}
+
+// petalRechargeMults — множитель времени ПЕРЕЗАРЯДКИ по виду петали (порт
+// родителя): лёгкие контроллеры восстанавливаются быстрее, жирные танки —
+// дольше. Полная перезарядка = база механики × множитель вида × заводка (cog).
+var petalRechargeMults = map[string]float64{
+	"pebble": 0.6,
+	"viper":  1.5, // перезарядка 5×1.5 = 7.5с (была базовая 5с)
+	"jag": 0.7, "tail": 0.7,
+	"whirl": 0.8, "wingblade": 0.8, "oval": 0.8, "ball": 0.8,
+	"saw": 0.9, "shard": 0.9, "thorns": 0.9, "tear": 0.9,
+	"cog":     1.1,
+	"compass": 1.2, "rhombus": 1.2, "twirl": 1.2, "shield": 1.2,
+	"entropy": 1.2, "singularity": 1.2,
+	"rune": 1.3, "anvil": 1.3,
+	"bulwark": 1.4, "fragwall": 1.4,
+	"saturn": 1.6,
 }
 
 // petalAtkCDs — БАЗОВЫЙ кулдаун удара (сек) для каждого вида петали.
@@ -512,7 +533,7 @@ var petalAtkCDs = map[string]float64{
 	"shard":      0.12, // рана
 	"cog":        0.12, // заводка
 	"whirl":      0.12, // спиннер
-	"blade":      0.10,
+	"blade":      0.05, // клинок — частые быстрые удары (порт родителя)
 	"viper":      0.13, // яд
 	"cube":       0.28, // тяжёлый пуш
 	"bulwark":    0.25, // танк-стат
@@ -534,6 +555,7 @@ var petalAtkCDs = map[string]float64{
 	"spike":      0, // пассив-аксессуар (шиповое тело)
 	"entropy":    0, // pet-спавнер, сам не бьёт
 	"singularity": 0, // pet-спавнер (Black Hole миньоны), сам не бьёт
+	"trap":       0.30, // ловушка: медленный «щелчок» (порт родителя)
 }
 
 // petalAtkCD — базовый кулдаун удара вида (fallback petalDamageCD).
@@ -659,13 +681,34 @@ func normalizePetalDef(d *PetalDef) {
 		rar = len(petalPower) - 1
 	}
 	d.Rarity = rar
-	mult := petalPower[rar]
+	// ГРЕЙД (порт родителя, pot.go): одно дискретное значение 100..200, оно же
+	// множит и HP/DMG, и пассивку. Здесь же живёт МИГРАЦИЯ: старый непрерывный
+	// Pot скругляется к ближайшему грейду своего тира, Eff выравнивается по
+	// нему, а легаси-UID снимается.
+	pot := snapPot(d.Pot, rar)
+	d.Pot, d.Eff = pot, pot
+	d.UID = ""
+	mult := petalPower[rar] * potMult(pot)
 	d.HP = kn.BaseHP * mult
 	d.MaxHP = d.HP
 	d.DMG = kn.BaseDMG * mult
-	d.Size = petalSizeBase * math.Pow(1.2, float64(rar))
+	// Крафтовый пол урона (craft.go): у скрафченных Hexagon+ урон не может быть
+	// ниже максимума предыдущего тира (порт родителя — без повтора пол терялся
+	// при первом же релоге). Провенанс (CraftedAt) отличает крафт от дропа.
+	if d.CraftedAt > 0 && kn.BaseDMG > 0 && rar >= 5 {
+		if floor := 15.75 * petalPower[rar-1] * potMult(pot); d.DMG < floor {
+			d.DMG = floor
+		}
+	}
+	if kn.Trap {
+		d.Size = trapPetalSize
+	} else if kn.Token {
+		d.Size = tokenPetalSize
+	} else {
+		d.Size = petalSizeBase * math.Pow(1.2, float64(rar))
+	}
 	d.Mass = petalDefMass(rar)
-	d.Color = groundPetalColor(rar)
+	d.Color = rarityWireColor(rar)
 	d.Name = kn.Name
 }
 
@@ -890,6 +933,9 @@ const (
 	// Базовые статы орбитальной петали Point:
 	petalBaseHP   = 5.0
 	petalBaseDMG  = 3.0
+	// Размеры исключений (порт родителя): ловушка/жетоны не растут с редкостью.
+	trapPetalSize  = 9.0
+	tokenPetalSize = 12.0
 	petalSizeBase = 8.0
 	petalColor    = 0xecf0f1
 )

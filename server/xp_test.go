@@ -3,10 +3,11 @@ package main
 import "testing"
 
 func TestPetalCapForLevel(t *testing.T) {
+	// Кривая родителя (порт): ранние капы быстрее (волны короткие).
 	cases := []struct{ lvl, want int }{
-		{0, 5}, {1, 5}, {4, 5}, {5, 6}, {9, 6},
-		{10, 7}, {15, 7}, {16, 8}, {24, 8},
-		{25, 9}, {49, 9}, {50, 10}, {99, 10},
+		{0, 5}, {1, 5}, {2, 6}, {3, 6}, {4, 7}, {7, 7},
+		{8, 8}, {15, 8}, {16, 9}, {24, 9},
+		{25, 10}, {49, 10}, {99, 10},
 	}
 	for _, c := range cases {
 		if got := petalCapForLevel(c.lvl); got != c.want {

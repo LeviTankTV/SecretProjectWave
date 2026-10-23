@@ -64,9 +64,48 @@ func (sp *statelessProfile) setHotbarAt(bar, slot int, def *PetalDef) {
 	sp.hotbars[bar] = hb
 }
 
+// findStack — стак вида/редкости с САМЫМ ВЫСОКИМ потенциалом (порт родителя):
+// клик/надеть/выбросить берёт лучший стак. Катушка крафта — наоборот,
+// findStackLowest: годролл не должен сгорать «автоматически».
 func (sp *statelessProfile) findStack(kind string, rarity int) int {
+	best := -1
 	for i := range sp.inv {
-		if sp.inv[i].Kind == kind && sp.inv[i].Rarity == rarity {
+		if sp.inv[i].Kind != kind || sp.inv[i].Rarity != rarity {
+			continue
+		}
+		if sp.inv[i].UID != "" {
+			continue // уникальный — только по UID
+		}
+		if best < 0 || normPot(sp.inv[i].Pot) > normPot(sp.inv[best].Pot) {
+			best = i
+		}
+	}
+	return best
+}
+
+// findStackLowest — стак того же вида/редкости с наименьшим потенциалом
+// (тратится катушкой крафта).
+func (sp *statelessProfile) findStackLowest(kind string, rarity int) int {
+	best := -1
+	for i := range sp.inv {
+		if sp.inv[i].Kind != kind || sp.inv[i].Rarity != rarity {
+			continue
+		}
+		if sp.inv[i].UID != "" {
+			continue
+		}
+		if best < 0 || normPot(sp.inv[i].Pot) < normPot(sp.inv[best].Pot) {
+			best = i
+		}
+	}
+	return best
+}
+
+// findStackExact — точный стак по (вид, редкость, грейд).
+func (sp *statelessProfile) findStackExact(kind string, rarity, pot int) int {
+	for i := range sp.inv {
+		if sp.inv[i].Kind == kind && sp.inv[i].Rarity == rarity &&
+			normPot(sp.inv[i].Pot) == normPot(pot) {
 			return i
 		}
 	}
@@ -74,7 +113,7 @@ func (sp *statelessProfile) findStack(kind string, rarity int) int {
 }
 
 func (sp *statelessProfile) addToInventory(def PetalDef) {
-	if i := sp.findStack(def.Kind, def.Rarity); i >= 0 {
+	if i := sp.findStackExact(def.Kind, def.Rarity, def.Pot); i >= 0 {
 		sp.inv[i].Count++
 		sp.sort()
 		return
@@ -111,7 +150,10 @@ func (sp *statelessProfile) takeN(kind string, rarity, n int) {
 
 func (sp *statelessProfile) sort() {
 	sort.SliceStable(sp.inv, func(a, b int) bool {
-		return sp.inv[a].Rarity > sp.inv[b].Rarity
+		if sp.inv[a].Rarity != sp.inv[b].Rarity {
+			return sp.inv[a].Rarity > sp.inv[b].Rarity
+		}
+		return normPot(sp.inv[a].Pot) > normPot(sp.inv[b].Pot)
 	})
 }
 
@@ -289,7 +331,7 @@ func (sp *statelessProfile) craft(kind string, rarity int, invest int) (string, 
 	if !craftableRarity(rarity) {
 		return "error", 0, 0, nil, nil
 	}
-	i := sp.findStack(kind, rarity)
+	i := sp.findStackLowest(kind, rarity)
 	if i < 0 || sp.inv[i].Count < invest {
 		return "error", 0, 0, nil, nil
 	}
@@ -305,7 +347,7 @@ func (sp *statelessProfile) craft(kind string, rarity int, invest int) (string, 
 	pool := invest // пул вложенных: тает на 5 за успех и на 1..4 за провал
 	for pool >= 5 {
 		// Достаём стопку заново (страховка: стак мог измениться).
-		sidx := sp.findStack(kind, rarity)
+		sidx := sp.findStackLowest(kind, rarity)
 		if sidx < 0 || sp.inv[sidx].Count < 5 {
 			break
 		}
@@ -314,7 +356,7 @@ func (sp *statelessProfile) craft(kind string, rarity int, invest int) (string, 
 		drawn += 5
 		roll := rand.Float64() * 100
 		if roll <= pct {
-			nd := makeCraftPetal(kind, rarity)
+			nd := makeCraftPetalBy(kind, rarity, sp.nick)
 			results = append(results, nd)
 			successes++
 			batches = append(batches, []CraftBatch{CraftBatch{Success: true, Lost: 0}}...)
@@ -322,7 +364,7 @@ func (sp *statelessProfile) craft(kind string, rarity int, invest int) (string, 
 			l := 1 + rand.Intn(4) // 1..4
 			lost += l
 			// Возврат 5-l: в стопку И в пул — они будут докручены.
-			sp.addCountToStack(kind, rarity, 5-l)
+			sp.addCountToStack(kind, rarity, 5-l) // возврат в тот же (нижний) стак
 			pool += 5 - l
 			batches = append(batches, []CraftBatch{CraftBatch{Success: false, Lost: l}}...)
 		}

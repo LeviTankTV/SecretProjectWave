@@ -1149,7 +1149,7 @@ func (r *Room) applyPetalPassives(p *Player, dt float64) {
 					pet.ShieldChargeT = shieldChargeInterval
 					// Петаль «впитывается» в игрока и уходит на перезарядку
 					// (cog ускоряет перезарядку всех петалей).
-					srch := petalRechargeCD(p, shieldRechargeT)
+					srch := petalRechargeCD(p, "shield", shieldRechargeT)
 					pet.Recharge = srch
 					pet.CDMax = srch
 				}
@@ -1908,7 +1908,7 @@ func (r *Room) fightPetalsVsMobs(dt float64) {
 					// всех петалей: petalRechargeCD), а НЕ исчезает.
 					if pet.HP <= 0 {
 						pet.HP = 0
-						rch := petalRechargeCD(p, petalRechargeT)
+						rch := petalRechargeCD(p, pet.Kind, petalRechargeT)
 						pet.Recharge = rch
 						pet.CDMax = rch
 						if petalKinds[pet.Kind].Split {
@@ -1999,7 +1999,7 @@ func (r *Room) fightPetalsVsMobs(dt float64) {
 						pet.AtkT = 0
 						if pet.HP <= 0 {
 							pet.HP = 0
-							rch := petalRechargeCD(p, petalRechargeT)
+							rch := petalRechargeCD(p, pet.Kind, petalRechargeT)
 							pet.Recharge = rch
 							pet.CDMax = rch
 							// Разрыв (hiveling): осколки в врагов.
@@ -2480,7 +2480,7 @@ func (r *Room) fightBossPetalsVsPlayers(dt float64) {
 						pet.AtkT = 0 // контакт босс-петаля перезапускает атаку
 						if pet.HP <= 0 {
 							pet.HP = 0
-							rch := petalRechargeCD(p, petalRechargeT)
+							rch := petalRechargeCD(p, pet.Kind, petalRechargeT)
 							pet.Recharge = rch
 							pet.CDMax = rch
 							// Слеза (tear): сломанная петаль лечит игрока.
@@ -2595,7 +2595,7 @@ func (r *Room) fightPvP(dt float64) {
 						oPet.AtkT = 0
 						if oPet.HP <= 0 {
 							oPet.HP = 0
-							orch := petalRechargeCD(op, petalRechargeT)
+							orch := petalRechargeCD(op, oPet.Kind, petalRechargeT)
 							oPet.Recharge = orch
 							oPet.CDMax = orch
 							// Слеза (tear): сломанная петаль лечит её владельца.
@@ -2608,7 +2608,7 @@ func (r *Room) fightPvP(dt float64) {
 						}
 						if pPet.HP <= 0 {
 							pPet.HP = 0
-							pch := petalRechargeCD(ap, petalRechargeT)
+							pch := petalRechargeCD(ap, pPet.Kind, petalRechargeT)
 							pPet.Recharge = pch
 							pPet.CDMax = pch
 							// Слеза (tear): сломанная петаль лечит её владельца.
@@ -2694,11 +2694,10 @@ func (r *Room) respawnPlayer(p *Player) {
 		}
 	}
 	r.rebuildOrbit(p)
-	rchAll := petalRechargeCD(p, petalRechargeT)
 	for i := range p.petals {
 		p.petals[i].HP = 0
-		p.petals[i].Recharge = rchAll // перезарядка после смерти (cog ускоряет)
-		p.petals[i].CDMax = rchAll
+		p.petals[i].Recharge = petalRechargeCD(p, p.petals[i].Kind, petalRechargeT) // перезарядка после смерти (cog + вид)
+		p.petals[i].CDMax = p.petals[i].Recharge
 	}
 	// Иммунитет на 3 секунды после респавна.
 	p.invulnT = respawnInvuln
@@ -3064,12 +3063,13 @@ func (r *Room) SwitchBar(id string, bar int) {
 // раскладки, чтобы «свежие» петали не вступали в бой мгновенно.
 // Аксессуары (eye/line/spike) НЕ трогаем: они вечны и без «загрузки».
 func (r *Room) rechargeOrbit(p *Player, t float64) {
-	// cog ускоряет ПЕРЕЗАРЯДКУ всех петалей (в т.ч. смену хотбара).
-	tc := petalRechargeCD(p, t)
 	for i := range p.petals {
 		if isOrbitAccessory(p.petals[i].Kind) {
 			continue
 		}
+		// cog ускоряет ПЕРЕЗАРЯДКУ всех петалей (в т.ч. смену хотбара);
+		// множитель вида — per-kind (порт родителя).
+		tc := petalRechargeCD(p, p.petals[i].Kind, t)
 		p.petals[i].HP = 0
 		p.petals[i].Recharge = tc
 		p.petals[i].CDMax = tc
@@ -3369,8 +3369,8 @@ func (r *Room) rechargePetal(p *Player, ownerKey string, t float64) {
 		if isOrbitAccessory(p.petals[i].Kind) {
 			return
 		}
-		// cog ускоряет ПЕРЕЗАРЯДКУ всех петалей.
-		tc := petalRechargeCD(p, t)
+		// cog ускоряет ПЕРЕЗАРЯДКУ; множитель вида — per-kind.
+		tc := petalRechargeCD(p, p.petals[i].Kind, t)
 		p.petals[i].HP = 0
 		p.petals[i].Recharge = tc
 		p.petals[i].CDMax = tc

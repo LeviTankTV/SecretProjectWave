@@ -14,8 +14,10 @@ func TestCraftSuccessByForce(t *testing.T) {
 	if nd.Kind != "oval" {
 		t.Fatalf("результат вида=%q, want oval", nd.Kind)
 	}
-	if nd.DMG != petalKinds["oval"].BaseDMG * petalPower[2] {
-		t.Fatalf("DMG результата = %v, want %v", nd.DMG, petalKinds["oval"].BaseDMG*petalPower[2])
+	// Грейд (порт родителя): статы результата умножаются на potMult(Pot)
+	// (100..200 по лестнице грейдов).
+	if nd.DMG != petalKinds["oval"].BaseDMG*petalPower[2]*potMult(nd.Pot) {
+		t.Fatalf("DMG результата = %v, want %v", nd.DMG, petalKinds["oval"].BaseDMG*petalPower[2]*potMult(nd.Pot))
 	}
 	if nd.Color != groundPetalColor(2) {
 		t.Fatalf("цвет результата = %X, want редкость Rare %X", nd.Color, groundPetalColor(2))

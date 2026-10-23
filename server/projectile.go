@@ -183,7 +183,7 @@ func (r *Room) updateProjectiles(dt float64) {
 						}
 						if oPet.HP <= 0 {
 							oPet.HP = 0
-							orch := petalRechargeCD(op, petalRechargeT)
+							orch := petalRechargeCD(op, oPet.Kind, petalRechargeT)
 							oPet.Recharge = orch
 							oPet.CDMax = orch
 						}
@@ -233,7 +233,7 @@ func (r *Room) fireBlades(pid string) {
 		// cog ускоряет перезарядку всех петалей (в т.ч. способности).
 		bidx := len(r.proj) - 1
 		r.proj[bidx].Rarity = pet.Rarity
-		bch := petalRechargeCD(p, bladeCooldown)
+		bch := petalRechargeCD(p, "blade", bladeCooldown)
 		pet.Recharge = bch
 		pet.CDMax = bch
 	}

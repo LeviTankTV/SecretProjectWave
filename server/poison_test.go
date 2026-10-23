@@ -144,7 +144,8 @@ func TestPoisonPlayerPetal(t *testing.T) {
 	if pet.HP != 0 {
 		t.Fatalf("петаль не умерла от яда: HP=%v", pet.HP)
 	}
-	if pet.Recharge != petalRechargeT {
+	// Перезарядка — per-kind (порт родителя): viper 5с×1.5 = 7.5с.
+	if pet.Recharge != petalRechargeT*petalRechargeMults[pet.Kind] {
 		t.Errorf("убитая ядом петаль не в перезарядке: Recharge=%v", pet.Recharge)
 	}
 	if pet.PoisonT != 0 || pet.PoisonDps != 0 {
