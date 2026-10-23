@@ -8,6 +8,7 @@ package main
 
 import (
 	"encoding/json"
+	"strconv"
 	"math"
 	"math/rand"
 )
@@ -185,8 +186,43 @@ func (r *Room) spawnWaveMobAt(tname string, rar int) (Mob, bool) {
 	x, y = r.clampArena(x, y, 100)
 	m := makeAdminMob(tname, rar, r.waveZone, x, y, r.mobIDSeq, "nothing")
 	r.mobIDSeq++
+	if tname == "trinity" {
+		// Тройной организм: раскладываем троих в треугольник (порт родителя).
+		r.mobs = append(r.mobs, m)
+		r.spawnTrinity(&r.mobs[len(r.mobs)-1])
+		return m, true
+	}
 	r.mobs = append(r.mobs, m)
 	return m, true
+}
+
+// spawnTrinity (порт родителя) раскладывает трёх членов Trinity в треугольник
+// вокруг точки спавна. Сам m становится «вожаком» (GSlot 0); двое других —
+// отдельными мобами с общим GroupID и своими картами урона (у каждого свой дроп).
+func (r *Room) spawnTrinity(m *Mob) {
+	const n = 3
+	cx, cy := m.X, m.Y
+	sp := m.Radius * 2.7
+	base := rand.Float64() * math.Pi * 2
+	for s := 0; s < n; s++ {
+		a := base + float64(s)*math.Pi*2/float64(n)
+		ox := math.Cos(a) * sp
+		oy := math.Sin(a) * sp
+		if s == 0 {
+			m.GSlot = 0
+			m.GroupID = m.ID
+			m.X, m.Y = cx+ox, cy+oy
+			continue
+		}
+		c := *m
+		c.ID = "mob_" + strconv.Itoa(r.mobIDSeq)
+		r.mobIDSeq++
+		c.GSlot = s
+		c.GroupID = m.GroupID
+		c.X, c.Y = cx+ox, cy+oy
+		c.Damage = nil // каждая единица — самостоятельный моб (карта ленивая)
+		r.mobs = append(r.mobs, c)
+	}
 }
 
 // tooCloseToPlayers — точка ближе waveSpawnSafeDist к живому игроку?

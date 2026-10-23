@@ -242,6 +242,9 @@ func (r *Room) spawnMob(zone int) {
 		scaleMobForRarity(&m, rarityChaos - 2)
 	}
 	r.mobs = append(r.mobs, m)
+	if m.Type == "trinity" {
+		r.spawnTrinity(&r.mobs[len(r.mobs)-1])
+	}
 	if txt := superSpawnText(zone, m); txt != "" {
 		r.broadcastSystemLocked("super", txt)
 	}
@@ -421,6 +424,10 @@ func (r *Room) tick() {
 			}
 		}
 	}
+
+	// Способности мобов Chaos (притяжение Black Hole, аура Saturn) — до
+	// клампа арены, чтобы тяга не выталкивала за границу (порт родителя).
+	r.applyMobChaosAbilities(dt)
 
 	// Волновой режим: директор волн вместо зонного спавна + круглая арена.
 	if r.waveMode {

@@ -276,6 +276,18 @@ type Mob struct {
 
 	// Hive: следующий порог HP для спавна моба (15% интервалы).
 	hiveNextSpawn float64
+	// FragTank: таймер выстрела башни (порт родителя, tankShootCD).
+	TankT float64
+	// Trinity: группа организма (общий ID) и слот в строю (0 = вожак).
+	GroupID string
+	GSlot   int
+	// Древние стражи (порт родителя): bud — таймер радиального залпа;
+	// marble/lancer/javelin — фазы движения (виляние/цикл выпада/орбита).
+	BurstT    float64
+	wavePhase float64
+	movePhase float64
+	moveAxis  float64
+	moveFlip  float64
 	// Подвид моба (порт родителя): "" / gold / ring / star / crescent.
 	// Спавн по весам variantSpawnWeights (~0.7% суммарно) или админ.
 	Variant string
@@ -693,6 +705,29 @@ const (
 	saturnRingBase   = 140.0
 	saturnRingPerRar = 30.0
 	saturnRingThick  = 26.0
+	// blackhole (моб) — притяжение игроков: радиус и сила тяги растут с редкостью
+	// (порт родителя, chaos_abilities.go).
+	mobHolePullRBase   = 450.0
+	mobHolePullRPerRar = 30.0
+	mobHolePullBase    = 70.0 // px/s на Point
+	mobHolePullPerRar  = 50.0 // + за каждую редкость (Chaos: 70+350=420 px/s)
+	// Древние стражи (порт родителя, mob_const.go):
+	budBurstCD        = 2.2    // пауза радиального залпа Bud
+	budBurstSpeed     = 260.0  // скорость лепестка-снаряда
+	budBurstLife      = 1.5    // время жизни снаряда
+	budBurstDmgFrac   = 0.8    // урон снаряда — доля DMG моба
+	budShotHPFrac     = 0.6    // «здоровье» снаряда — доля DMG моба
+	marbleWigFreq     = 5.5    // частота виляния Marble (рад/с)
+	marbleWigAmp      = 0.7    // амплитуда виляния (~40°)
+	lancerLungeCycle  = 1.6    // цикл Lancer: выпад-отход-пауза
+	lancerLungeTime   = 0.5
+	lancerRetreatTime = 1.1
+	lancerLungeMult   = 2.2  // множитель скорости в выпаде
+	lancerRetreatMult = 0.85
+	lancerPatrolFlip  = 2.4
+	javelinOrbitR     = 46.0 // радиус орбиты Javelin вокруг цели
+	javelinOrbitOmega = 2.8
+	javelinGrazeOmega = 0.55
 	saturnDpsBase    = 8.0
 	// Rune (петаль rune): удары вешают руну на моба; runeStackNeed стаков →
 	// взрыв AoE runeBoomMult×DMG петеля в runeBoomRadius вокруг моба.
@@ -1583,6 +1618,64 @@ func (r *Room) updateMob(m *Mob, players map[string]*Player, dt float64) {
 		}
 	}
 
+	// FragTank (порт родителя): подъехав на среднюю дистанцию, ОСТАНАВЛИВАЕТСЯ
+	// и расстреливает цель снарядами-«гильзами» (тут — гоминг-шар как у Beam,
+	// но в цвете танка и с его уроном; на ходу не стреляет).
+	if m.Type == "fragtank" && m.state == "chase" && target != nil {
+		dist := math.Sqrt(math.Pow(target.State.X-m.X, 2) + math.Pow(target.State.Y-m.Y, 2))
+		if dist < mt.AggroRange*0.6 {
+			m.dirX, m.dirY = 0, 0 // встал и стреляет
+			if m.TankT > 0 {
+				m.TankT -= dt
+			}
+			if m.TankT <= 0 {
+				r.spawnBeamOrb(m, target)
+				m.TankT = tankShootCD
+			}
+		}
+	}
+
+	// Trinity (порт родителя) — ЕДИНЫЙ организм из 3 мобов: ведомые держат
+	// треугольник вокруг «вожака» (живого члена группы с наименьшим GSlot).
+	// Вожак едет на игрока как обычный моб, ведомые следуют за ним в строй.
+	// При смерти члена строй перестраивается на двоих, затем на одного.
+	// Работает и в патруле, и в погоне (override dir ПОСЛЕ chase/patrol).
+	if m.Type == "trinity" && m.GroupID != "" {
+		lead := -1
+		leadSlot := -1
+		for i := range r.mobs {
+			o := &r.mobs[i]
+			if o == m || o.HP <= 0 || o.Zone != m.Zone || o.GroupID != m.GroupID {
+				continue
+			}
+			if leadSlot < 0 || o.GSlot < leadSlot {
+				lead = i
+				leadSlot = o.GSlot
+			}
+		}
+		if lead >= 0 && m.GSlot > leadSlot {
+			l := &r.mobs[lead]
+			fSp := m.Radius * 2.7
+			// Угол «хвоста» строя = направление вожака, развёрнутое назад.
+			ta := math.Atan2(l.dirY, l.dirX) + math.Pi
+			if m.GSlot == 1 {
+				ta += math.Pi / 3
+			} else {
+				ta -= math.Pi / 3
+			}
+			tx := l.X + math.Cos(ta)*fSp
+			ty := l.Y + math.Sin(ta)*fSp
+			dx := tx - m.X
+			dy := ty - m.Y
+			dd := math.Sqrt(dx*dx + dy*dy)
+			if dd > 0.5 {
+				m.dirX = dx / dd
+				m.dirY = dy / dd
+			}
+			m.moveTimer = 1.2
+		}
+	}
+
 	// Компания Shield+Pentagon: во время патруля каждый моб группы (shield и
 	// pentagon) следует за «вожаком» — ближайшим соседом той же группы с
 	// наименьшим индексом. Ведомый держит строй: идёт в точку чуть позади
@@ -1631,12 +1724,103 @@ func (r *Room) updateMob(m *Mob, players map[string]*Player, dt float64) {
 		}
 	}
 
+	// Bud (древний странник, порт родителя): в агре раз в ~2.2с выбрасывает
+	// 8 лепестков-снарядов СТРОГО по 360° (радиальный залп во все стороны).
+	if m.Type == "bud" {
+		if m.BurstT > 0 {
+			m.BurstT -= dt
+		}
+		if m.BurstT <= 0 && m.state == "chase" {
+			r.spawnBudBurst(m)
+			m.BurstT = budBurstCD * (0.85 + rand.Float64()*0.3)
+		}
+	}
+
+	// Marble (древний странник): «Sine -> Serpentine» — в погоне курс виляет
+	// вокруг прямой на игрока. В патруле — обычное блуждание.
+	if m.Type == "marble" {
+		m.wavePhase += dt * marbleWigFreq
+		if m.state == "chase" && target != nil {
+			dx := target.State.X - m.X
+			dy := target.State.Y - m.Y
+			ln := math.Sqrt(dx*dx + dy*dy)
+			if ln > 1 {
+				a := math.Atan2(dy, dx) + math.Sin(m.wavePhase)*marbleWigAmp
+				m.dirX, m.dirY = math.Cos(a), math.Sin(a)
+			}
+		}
+	}
+
+	// Lancer — «Ping-Pong -> Lunge»: в патруле ходит по оси туда-сюда; в агре —
+	// цикл: выпад на игрока, отход, пауза. Не липнет к игроку в упор.
+	if m.Type == "lancer" {
+		if m.moveAxis == 0 {
+			m.moveAxis = rand.Float64()*math.Pi*2 + 0.001
+		}
+		m.movePhase += dt
+		if m.state == "chase" && target != nil {
+			dx := target.State.X - m.X
+			dy := target.State.Y - m.Y
+			ln := math.Sqrt(dx*dx + dy*dy)
+			if ln > 0.5 {
+				c := math.Mod(m.movePhase, lancerLungeCycle)
+				if c >= lancerLungeTime && c < lancerRetreatTime {
+					m.dirX, m.dirY = -dx/ln, -dy/ln // отступ по той же прямой
+				} else {
+					m.dirX, m.dirY = dx/ln, dy/ln
+				}
+			}
+		} else {
+			// Ping-pong: чётные проходы — вперёд по оси, нечётные — назад.
+			if int(m.movePhase/lancerPatrolFlip)%2 == 1 {
+				m.moveFlip = -1
+			} else {
+				m.moveFlip = 1
+			}
+			m.dirX = math.Cos(m.moveAxis) * m.moveFlip
+			m.dirY = math.Sin(m.moveAxis) * m.moveFlip
+			m.moveTimer = 9999 // общий патруль не перебивает ось
+		}
+	}
+
+	// Javelin — «Graze -> Orbit»: в патруле пасётся медленным кругом; в агре
+	// облетает игрока на радиусе удара, срезает угол и бьёт на проходе.
+	if m.Type == "javelin" {
+		if m.moveAxis == 0 {
+			m.moveAxis = rand.Float64()*math.Pi*2 + 0.001
+		}
+		m.movePhase += dt
+		if m.state == "chase" && target != nil {
+			a := math.Atan2(m.Y-target.State.Y, m.X-target.State.X) + javelinOrbitOmega*dt
+			tx := target.State.X + math.Cos(a)*javelinOrbitR
+			ty := target.State.Y + math.Sin(a)*javelinOrbitR
+			sx := tx - m.X
+			sy := ty - m.Y
+			sl := math.Sqrt(sx*sx + sy*sy)
+			if sl > 0.5 {
+				m.dirX, m.dirY = sx/sl, sy/sl
+			}
+		} else {
+			a := m.moveAxis + m.movePhase*javelinGrazeOmega
+			m.dirX, m.dirY = math.Cos(a), math.Sin(a)
+			m.moveTimer = 9999
+		}
+	}
+
 	// Эффективная скорость: у comet/arrow своя фазовая скорость (рывок/цикл разгона).
 	eff := m.Speed
 	if m.Type == "comet" {
 		eff = cometPhaseSpeed(m, dt)
 	} else if m.Type == "arrow" {
 		eff = arrowPhaseSpeed(m, dt)
+	} else if m.Type == "lancer" && m.state == "chase" {
+		// Цикл выпада (порт родителя): рывок x2.2 -> отход x0.85 -> пауза.
+		c := math.Mod(m.movePhase, lancerLungeCycle)
+		if c < lancerLungeTime {
+			eff *= lancerLungeMult
+		} else if c < lancerRetreatTime {
+			eff *= lancerRetreatMult
+		}
 	}
 	// Замедление (Rhombus): пока SlowT > 0 моб движется на SlowFrac медленнее.
 	if m.SlowT > 0 {

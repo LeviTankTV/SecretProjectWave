@@ -18,6 +18,7 @@ const (
 	beamOrbTurn   = 2.6    // скорость поворота вектора к цели (рад/с) — «доведение»
 	beamOrbHPBase = 6.0    // HP шара r0 (далее × rarityDanger редкости Beam)
 	beamShootBase = 4.0    // средняя пауза между выстрелами Beam (случайная ±)
+	tankShootCD   = 1.5    // перезарядка башни FragTank (порт родителя)
 )
 
 // BeamOrb — летящий энергетический шар Beam.

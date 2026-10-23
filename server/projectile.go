@@ -80,6 +80,10 @@ func (r *Room) updateProjectiles(dt float64) {
 			if m.HP <= 0 || m.Zone != pr.Zone || m.Showcase {
 				continue
 			}
+			// Снаряды команды мобов (залп Bud) своих не задевают.
+			if pr.OwnerTeam == 2 {
+				break
+			}
 			dx := m.X - pr.X
 			dy := m.Y - pr.Y
 			if math.Sqrt(dx*dx+dy*dy) < m.Radius+pr.Size {
@@ -250,6 +254,23 @@ func (r *Room) spawnHivelingShards(p *Player, pet *Petal) {
 			math.Cos(a)*hivelingShardSpeed, math.Sin(a)*hivelingShardSpeed,
 			dmg, 0, pet.Size*1.2, pet.Color, "shard", hivelingShardLife, true))
 		r.proj[si].Rarity = pet.Rarity
+	}
+}
+
+// spawnBudBurst (порт родителя) — Bud выпускает 8 лепестков-снарядов строго
+// по 360°. Снаряды команды 2 (мобы): бьют игроков, своих мобов не задевают.
+func (r *Room) spawnBudBurst(m *Mob) {
+	const burstCount = 8
+	dmg := m.DMG * budBurstDmgFrac
+	hp := m.DMG * budShotHPFrac
+	for i := 0; i < burstCount; i++ {
+		a := (float64(i) / float64(burstCount)) * 2 * math.Pi
+		si := len(r.proj)
+		r.proj = append(r.proj, r.newProjectile(
+			m.ID, 2, m.Zone, m.X, m.Y,
+			math.Cos(a)*budBurstSpeed, math.Sin(a)*budBurstSpeed,
+			dmg, hp, m.Radius*0.55, mobTypes[m.Type].Color, "budshot", budBurstLife, true))
+		r.proj[si].Rarity = m.Rarity
 	}
 }
 

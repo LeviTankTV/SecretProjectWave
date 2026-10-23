@@ -20,7 +20,9 @@ func (r *Room) collideMobs() {
 				continue
 			}
 			// Hive игнорирует столкновения с другими мобами.
-			if a.noMobCollide || b.noMobCollide {
+			// Члены одной группы Trinity друг сквозь друга не толкаются.
+			if a.noMobCollide || b.noMobCollide ||
+				(a.GroupID != "" && a.GroupID == b.GroupID) {
 				continue
 			}
 			dx := b.X - a.X
