@@ -167,246 +167,25 @@ func pickL2RarityAtY(z *Zone, y float64) int {
 // mobHPScale - общий усилитель запаса HP мобов.
 const mobHPScale = 4.0
 
-var mobTypes = map[string]MobType{
-	// === Zone 0: Point — мир точек ===
-	"dot": {
-		Name: "Dot", Color: 0x2ecc71,
-		BaseHP: 12, BaseDMG: 2, BaseSpeed: 45, BaseRadius: 18,
-		AggroRange: 240, Shape: "circle",
-	},
-	"pebble": {
-		Name: "Pebble", Color: 0x27ae60,
-		BaseHP: 8, BaseDMG: 4, BaseSpeed: 75, BaseRadius: 14,
-		AggroRange: 180, Shape: "pebble",
-	},
-	// === Zone 1: Line — мир линий ===
-	"dart": {
-		Name: "Dart", Color: 0xf1c40f,
-		BaseHP: 8, BaseDMG: 6, BaseSpeed: 120, BaseRadius: 14,
-		AggroRange: 300, Shape: "dart",
-	},
-	"spinner": {
-		Name: "Spinner", Color: 0xf39c12,
-		BaseHP: 18, BaseDMG: 4, BaseSpeed: 45, BaseRadius: 22,
-		AggroRange: 200, Shape: "spinner",
-	},
-	// === Zone 2: Triangle — мир треугольников ===
-	"triangle": {
-		Name: "Triangle", Color: 0xe67e22,
-		BaseHP: 14, BaseDMG: 7, BaseSpeed: 55, BaseRadius: 20,
-		AggroRange: 280, Shape: "triangle",
-	},
-	"arrow": {
-		Name: "Arrow", Color: 0xd35400,
-		BaseHP: 7, BaseDMG: 12, BaseSpeed: 160, BaseRadius: 13,
-		AggroRange: 400, Shape: "arrow",
-	},
-	// === Zone 3: Square — мир квадратов ===
-	"square": {
-		Name: "Square", Color: 0xe74c3c,
-		BaseHP: 22, BaseDMG: 5, BaseSpeed: 40, BaseRadius: 24,
-		AggroRange: 350, Shape: "square",
-	},
-	"block": {
-		Name: "Block", Color: 0x8b0000,
-		BaseHP: 80, BaseDMG: 8, BaseSpeed: 0, BaseRadius: 35,
-		AggroRange: 0, Shape: "block",
-	},
-	// === Zone 4: Pentagon — мир пятиугольников ===
-	"pentagon": {
-		Name: "Pentagon", Color: 0x3498db,
-		BaseHP: 28, BaseDMG: 7, BaseSpeed: 50, BaseRadius: 26,
-		AggroRange: 350, Shape: "pentagon",
-	},
-	"shield": {
-		Name: "Shield", Color: 0x2980b9,
-		BaseHP: 40, BaseDMG: 3, BaseSpeed: 30, BaseRadius: 30,
-		AggroRange: 200, Shape: "shield",
-	},
-	// === Zone 5: Hexagon — мир шестиугольников ===
-	"hexagon": {
-		Name: "Hexagon", Color: 0x1abc9c,
-		BaseHP: 34, BaseDMG: 8, BaseSpeed: 50, BaseRadius: 28,
-		AggroRange: 380, Shape: "hexagon",
-	},
-	"hive": {
-		Name: "Hive", Color: 0x16a085,
-		BaseHP: 60, BaseDMG: 4, BaseSpeed: 0, BaseRadius: 32,
-		AggroRange: 300, Shape: "hive",
-	},
-	// === Zone 6: Fractal — мир фракталов ===
-	"actal": {
-		Name: "Actal", Color: 0x9b59b6,
-		BaseHP: 28, BaseDMG: 10, BaseSpeed: 65, BaseRadius: 22,
-		AggroRange: 400, Shape: "triangle",
-	},
-	"fragspark": {
-		Name: "FragSpark", Color: 0xd6a4ff,
-		BaseHP: 12, BaseDMG: 13, BaseSpeed: 130, BaseRadius: 14,
-		AggroRange: 350, Shape: "spark",
-	},
-	"fragwall": {
-		Name: "FragWall", Color: 0x6c3483,
-		BaseHP: 55, BaseDMG: 5, BaseSpeed: 20, BaseRadius: 30,
-		AggroRange: 200, Shape: "wall",
-	},
-	// === Zone 7: Chaos — мир хаоса ===
-	"void": {
-		Name: "Void", Color: 0x8e44ad,
-		BaseHP: 42, BaseDMG: 13, BaseSpeed: 55, BaseRadius: 30,
-		AggroRange: 450, Shape: "void",
-	},
-	"entropy": {
-		Name: "Entropy", Color: 0xe74c3c,
-		BaseHP: 32, BaseDMG: 16, BaseSpeed: 80, BaseRadius: 20,
-		AggroRange: 380, Shape: "entropy",
-	},
-	// === Реальные мобы-«новобранцы» из витринных мокапов TestRoom ===
-	// Shape "mockup_N" переиспользует авторские дизайны витрины: моб рисуется
-	// клиентом через drawShowcaseDesign (см. drawMobShape).
-	// Zone 0: Point
-	"beads": {
-		Name: "Beads", Color: 0x1dbf73,
-		BaseHP: 8, BaseDMG: 2, BaseSpeed: 60, BaseRadius: 16,
-		AggroRange: 200, Shape: "mockup_3",
-	},
-	"tear": {
-		Name: "Tear", Color: 0x27ae60,
-		// афк-моб (как Block/Hive): стоит на месте, распластался каплей.
-		BaseHP: 14, BaseDMG: 2, BaseSpeed: 0, BaseRadius: 22,
-		AggroRange: 220, Shape: "mockup_4",
-	},
-	// Zone 1: Line
-	"comet": {
-		Name: "Comet", Color: 0xf9ca24,
-		BaseHP: 12, BaseDMG: 8, BaseSpeed: 105, BaseRadius: 16,
-		AggroRange: 320, Shape: "mockup_14",
-	},
-	"beam": {
-		Name: "Beam", Color: 0xffd32e,
-		BaseHP: 10, BaseDMG: 11, BaseSpeed: 95, BaseRadius: 15,
-		AggroRange: 350, Shape: "mockup_15",
-	},
-	// Zone 2: Triangle
-	"spike": {
-		Name: "Spike", Color: 0xf6b93b,
-		// Цвет адаптирован под Triangle-зону (оранжевая тема зоны).
-		BaseHP: 12, BaseDMG: 9, BaseSpeed: 70, BaseRadius: 18,
-		AggroRange: 300, Shape: "mockup_1",
-	},
-	// Zone 3: Square
-	"cross": {
-		Name: "Cross", Color: 0xc0392b,
-		// Цвет адаптирован под Square-зону: тёмно-красный (как просил юзер).
-		BaseHP: 25, BaseDMG: 5, BaseSpeed: 45, BaseRadius: 26,
-		AggroRange: 340, Shape: "mockup_5",
-	},
-	"prism": {
-		Name: "Prism", Color: 0xe74c3c,
-		// Редкий НЕЙТРАЛЬНЫЙ моб Square-зоны (Peaceful): не агрится на игрока,
-		// пока игрок сам не ударит его (тогда честно догоняет обидчика).
-		// Дропает петаль Rhombus — замедление в пределах редкости петеля.
-		BaseHP: 32, BaseDMG: 8, BaseSpeed: 42, BaseRadius: 26,
-		AggroRange: 360, Shape: "mockup_16",
-		Peaceful: true,
-	},
-	// Zone 4: Pentagon
-	"star": {
-		Name: "Star", Color: 0x0abab5,
-		BaseHP: 24, BaseDMG: 7, BaseSpeed: 60, BaseRadius: 24,
-		AggroRange: 360, Shape: "mockup_2",
-	},
-	// Zone 5: Hexagon
-	"aeon": {
-		Name: "Aeon", Color: 0xb07cd6,
-		BaseHP: 36, BaseDMG: 8, BaseSpeed: 45, BaseRadius: 26,
-		AggroRange: 380, Shape: "mockup_11",
-	},
-	"rune": {
-		Name: "Rune", Color: 0x9b59b6,
-		BaseHP: 32, BaseDMG: 9, BaseSpeed: 55, BaseRadius: 24,
-		AggroRange: 380, Shape: "mockup_12",
-	},
-	"cog": {
-		Name: "Cog", Color: 0x16a085,
-		BaseHP: 40, BaseDMG: 7, BaseSpeed: 40, BaseRadius: 28,
-		AggroRange: 350, Shape: "mockup_13",
-	},
-	// Zone 6: Fractal
-	"sun": {
-		Name: "Sun", Color: 0x85c1e9,
-		BaseHP: 30, BaseDMG: 10, BaseSpeed: 55, BaseRadius: 24,
-		AggroRange: 400, Shape: "mockup_7",
-	},
-	"mote": {
-		Name: "Mote", Color: 0x8e44ad,
-		BaseHP: 20, BaseDMG: 12, BaseSpeed: 92, BaseRadius: 18,
-		AggroRange: 380, Shape: "mockup_10",
-	},
-	// Zone 7: Chaos
-	"saturn": {
-		Name: "Saturn", Color: 0x73c6b6,
-		BaseHP: 45, BaseDMG: 14, BaseSpeed: 45, BaseRadius: 32,
-		AggroRange: 420, Shape: "mockup_6",
-	},
-	"eye": {
-		Name: "Eye", Color: 0xe472a0,
-		BaseHP: 38, BaseDMG: 15, BaseSpeed: 60, BaseRadius: 26,
-		AggroRange: 450, Shape: "mockup_8",
-	},
-	"galaxy": {
-		Name: "Galaxy", Color: 0x9b59b6,
-		BaseHP: 42, BaseDMG: 14, BaseSpeed: 55, BaseRadius: 30,
-		AggroRange: 430, Shape: "mockup_9",
-	},
-	// Black Hole — редкий моб Chaos-зоны. Уникальный дизайн "blackhole" на
-	// клиенте: аккреционный диск, фотонное кольцо, горизонт событий.
-	// Базовый DMG 8 × mobDmgMult(2.0) = 16 на Point-редкости.
-	"blackhole": {
-		Name: "Black Hole", Color: 0x5b2c6f,
-		BaseHP: 48, BaseDMG: 8, BaseSpeed: 50, BaseRadius: 34,
-		AggroRange: 450, Shape: "blackhole",
-	},
-	// === TestRoom: 16 витринных мокапов (не спавнятся обычным спавнером) ===
-	// Shape "mockup_N" рисуется клиентом в drawShowcaseDesign.
-	"mockup1":  {Name: "Spike", Color: 0x48c9b0, BaseHP: 1, BaseDMG: 0, BaseSpeed: 0, BaseRadius: 42, AggroRange: 0, Shape: "mockup_1"},
-	"mockup2":  {Name: "Star", Color: 0x0abab5, BaseHP: 1, BaseDMG: 0, BaseSpeed: 0, BaseRadius: 42, AggroRange: 0, Shape: "mockup_2"},
-	"mockup3":  {Name: "Beads", Color: 0x1dbf73, BaseHP: 1, BaseDMG: 0, BaseSpeed: 0, BaseRadius: 42, AggroRange: 0, Shape: "mockup_3"},
-	"mockup4":  {Name: "Tear", Color: 0x27ae60, BaseHP: 1, BaseDMG: 0, BaseSpeed: 0, BaseRadius: 42, AggroRange: 0, Shape: "mockup_4"},
-	"mockup5":  {Name: "Cross", Color: 0x52be80, BaseHP: 1, BaseDMG: 0, BaseSpeed: 0, BaseRadius: 42, AggroRange: 0, Shape: "mockup_5"},
-	"mockup6":  {Name: "Saturn", Color: 0x73c6b6, BaseHP: 1, BaseDMG: 0, BaseSpeed: 0, BaseRadius: 42, AggroRange: 0, Shape: "mockup_6"},
-	"mockup7":  {Name: "Sun", Color: 0x85c1e9, BaseHP: 1, BaseDMG: 0, BaseSpeed: 0, BaseRadius: 42, AggroRange: 0, Shape: "mockup_7"},
-	"mockup8":  {Name: "Eye", Color: 0xe472a0, BaseHP: 1, BaseDMG: 0, BaseSpeed: 0, BaseRadius: 42, AggroRange: 0, Shape: "mockup_8"},
-	"mockup9":  {Name: "Galaxy", Color: 0x9b59b6, BaseHP: 1, BaseDMG: 0, BaseSpeed: 0, BaseRadius: 42, AggroRange: 0, Shape: "mockup_9"},
-	"mockup10": {Name: "Mote", Color: 0x8e44ad, BaseHP: 1, BaseDMG: 0, BaseSpeed: 0, BaseRadius: 42, AggroRange: 0, Shape: "mockup_10"},
-	"mockup11": {Name: "Aeon", Color: 0xb07cd6, BaseHP: 1, BaseDMG: 0, BaseSpeed: 0, BaseRadius: 42, AggroRange: 0, Shape: "mockup_11"},
-	"mockup12": {Name: "Rune", Color: 0x9b59b6, BaseHP: 1, BaseDMG: 0, BaseSpeed: 0, BaseRadius: 42, AggroRange: 0, Shape: "mockup_12"},
-	"mockup13": {Name: "Cog", Color: 0x16a085, BaseHP: 1, BaseDMG: 0, BaseSpeed: 0, BaseRadius: 42, AggroRange: 0, Shape: "mockup_13"},
-	"mockup14": {Name: "Comet", Color: 0xf9ca24, BaseHP: 1, BaseDMG: 0, BaseSpeed: 0, BaseRadius: 42, AggroRange: 0, Shape: "mockup_14"},
-	"mockup15": {Name: "Beam", Color: 0xffd32e, BaseHP: 1, BaseDMG: 0, BaseSpeed: 0, BaseRadius: 42, AggroRange: 0, Shape: "mockup_15"},
-	// Prism (16): красный кристалл-призма из дважды ромба. Отдельный стенд в
-	// TestRoom ПОД НОМЕРОМ 16; слоты 17-25 пока свободны (новые мобы появятся).
-	"mockup16": {Name: "Prism", Color: 0xe74c3c, BaseHP: 1, BaseDMG: 0, BaseSpeed: 0, BaseRadius: 42, AggroRange: 0, Shape: "mockup_16"},
-}
 
 // mobTypesInZone - из каких типов выбирается рандомный моб в зоне.
 var mobTypesInZone = [][]string{
-	{"dot", "pebble", "beads", "tear"},                        // 0  Point
+	{"dot", "pebble", "beads", "tear", "trinity"},             // 0  Point (Trinity — тройной организм, редкий)
 	{"dart", "spinner", "comet", "beam"},                      // 1  Line
-	{"triangle", "arrow", "spike"},                            // 2  Triangle
-	{"square", "block", "cross", "prism"},                     // 3  Square (Prism — редкий нейтральный)
-	{"pentagon", "shield", "star"},                            // 4  Pentagon
+	{"triangle", "arrow", "spike", "arrowhead", "shardwing", "zigzag"}, // 2  Triangle (новые: Arrowhead/Shardwing/Zigzag)
+	{"square", "block", "cross", "prism", "frame", "kite", "quarry"}, // 3  Square (Prism — редкий нейтральный; новые Frame/Kite/Quarry)
+	{"pentagon", "shield", "star", "nova", "mirror"},          // 4  Pentagon (Nova — реже Star, Mirror — очень редкий)
 	{"hexagon", "aeon", "rune", "cog", "hive"},                // 5  Hexagon (Hive — редкий)
-	{"actal", "fragspark", "fragwall", "sun", "mote"},         // 6  Fractal
+	{"actal", "fragspark", "fragwall", "fragtank", "sun", "mote"}, // 6  Fractal (FragTank — порт родителя, FragWall — Wave-уникал)
 	{"void", "entropy", "hexagon", "saturn", "eye", "galaxy", "blackhole"}, // 7  Chaos
 	// Второй уровень (те же типы, что у родительской зоны).
-	{"dot", "pebble", "beads", "tear"},                        // 8  Point II
+	{"dot", "pebble", "beads", "tear", "trinity"},             // 8  Point II
 	{"dart", "spinner", "comet", "beam"},                      // 9  Line II
-	{"triangle", "arrow", "spike"},                            // 10 Triangle II
-	{"square", "block", "cross", "prism"},                     // 11 Square II (Prism — редкий нейтральный)
-	{"pentagon", "shield", "star"},                            // 12 Pentagon II
+	{"triangle", "arrow", "spike", "arrowhead", "shardwing", "zigzag"}, // 10 Triangle II
+	{"square", "block", "cross", "prism", "frame", "kite", "quarry"}, // 11 Square II
+	{"pentagon", "shield", "star", "nova", "mirror"},          // 12 Pentagon II
 	{"hexagon", "aeon", "rune", "cog", "hive"},                // 13 Hexagon II (Hive — редкий)
-	{"actal", "fragspark", "fragwall", "sun", "mote"},         // 14 Fractal II
+	{"actal", "fragspark", "fragwall", "fragtank", "sun", "mote"}, // 14 Fractal II
 	{"void", "entropy", "hexagon", "saturn", "eye", "galaxy", "blackhole"}, // 15 Chaos II
 	nil, // 16 TestRoom — обычные мобы не спавнятся
 }
@@ -420,21 +199,21 @@ var mobTypesInZone = [][]string{
 // шанс упал с 2/11 ≈ 18% до 1/14 ≈ 7% (в ~2.5 раза).
 // Если весов нет (или длина не совпадает) — randMobType падает на равномерный выбор.
 var zoneSpawnWeights = map[int][]int{
-	0:  {5, 4, 1, 2},
+	0:  {5, 4, 1, 2, 1},                       // trinity — редкий
 	1:  {5, 4, 2, 2},
-	2:  {5, 4, 1},
-	3:  {5, 2, 2, 1},
-	4:  {7, 6, 1},
+	2:  {5, 4, 1, 2, 2, 1},                    // arrowhead/shardwing — заметные, zigzag — редкий
+	3:  {5, 2, 2, 1, 2, 2, 1},                 // frame/kite — заметные, quarry — редкий
+	4:  {7, 6, 1, 1, 1},                       // nova — как star, mirror — очень редкий
 	5:  {4, 2, 2, 2, 1},
-	6:  {4, 4, 3, 2, 2},
+	6:  {4, 4, 3, 3, 2, 2},                    // fragtank наравне с fragwall
 	7:  {33, 33, 12, 10, 1, 11, 1},
-	8:  {5, 4, 1, 2},
+	8:  {5, 4, 1, 2, 1},
 	9:  {5, 4, 2, 2},
-	10: {5, 4, 1},
-	11: {5, 2, 2, 1},
-	12: {7, 6, 1},
+	10: {5, 4, 1, 2, 2, 1},
+	11: {5, 2, 2, 1, 2, 2, 1},
+	12: {7, 6, 1, 1, 1},
 	13: {4, 2, 2, 2, 1},
-	14: {4, 4, 3, 2, 2},
+	14: {4, 4, 3, 3, 2, 2},
 	15: {33, 33, 12, 10, 1, 11, 1},
 }
 
@@ -453,424 +232,16 @@ var zoneMobLimits = []int{150, 160, 128, 126, 240, 160, 180, 120, 300, 320, 256,
 var zoneRarityFloor = []int{0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 3, 3, 3, 0, 0}
 var zoneRarityCeil = []int{3, 3, 3, 3, 3, 3, 3, 3, 7, 7, 7, 7, 7, 7, 7, 7, 0}
 
-// ---- Виды петалей ----
-
-// PetalKind описывает "вид" петеля (роль): у каждого свой базовый стат-профиль,
-// форма для отрисовки. Комбинация (Kind, Rarity) определяет предмет петеля.
-type PetalKind struct {
-	Name      string
-	Shape     string
-	BaseHP    float64
-	BaseDMG   float64
-	Poison    bool // яд: удары петеля вешают на моба DoT (см. applyPoison)
-	Thorns    bool // шипы: износ петеля отражается мобу (см. fightPetalsVsMobs)
-	Regen     bool // реген: пассивно лечит игрока % MaxHP/сек, пока петаль активна (orb)
-	MaxHP     bool // MaxHP: пассивно добавляет к макс. HP игрока по редкости (bulwark)
-	Magnet    bool // магнит: притягивает петали-дропы с пола к игроку (hex)
-	Split     bool // разрыв: при уничтожении выпускает осколки в врагов (hiveling)
-	Missile   bool // миссил: по пробелу вылетает по касательной к орбите (blade)
-	Push      bool // толчок: усиленный гравитационный отброс моба от удара (cube)
-	Chain     bool // цепь: цепной урон ближайшим врагам с визуальной линией (spark)
-	Dash      bool // рывок: по пробелу тратит петаль и делает рывок по движению (void)
-	Lifesteal bool // лайфстил: при ударе лечит игрока % от нанесённого урона (oval)
-	Armor     bool // броня: износ от ударов мобов снижен (rock)
-	Bomb      bool // бомба: мини-АОЕ вокруг точки удара (ball)
-	Sling     bool // праща: сильный толчок и почти нет кулдауна удара (pebble)
-	Wound     bool // рана: короткий DoT на цели при ударе (shard)
-	Spin      bool // ускоритель: ускоряет вращение орбиты по редкости, стакается (cog)
-	Swift     bool // ускорение: повышает скорость передвижения игрока, стакается (penta)
-	Twin      bool // самоподобие: шанс двойного удара (fractalite)
-	Guard     bool // барьер: пассивно снижает входящий урон игрока, стакается (fragwall)
-	Shield    bool // щит: пополняет полоску щита игрока (броню перед HP) (shield)
-
-	Tear      bool // слеза: при РАЗРУШЕНИИ петеля лечит игрока % MaxHP по редкости (tear)
-	Eye       bool // глаз: увеличивает радиус орбиты всех петалей по редкости (eye)
-	View      bool // линия: геометрически расширяет радиус обзора игрока (line)
-	Compass   bool // компас: сервер шлёт угол на ближайшего Fractal/Chaos-моба (compass)
-	Saturn    bool // кольца: урон-кольцо вокруг игрока, враги в кольце тикаются (saturn)
-	Rune      bool // руна: 3 стака на мобе → взрыв AoE вокруг него (rune)
-	Overdrive bool // заводка: укорачивает кулдаун удара всех петалей, стакается (cog)
-	Slow      bool // замедление: удар тормозит моба в пределах своей редкости (rhombus)
-	Twirl     bool // разворот: каждый Twirl на орбите переворачивает направление её вращения (twirl)
-
-	MinionType string // тип моба-миньона ("entropy" / "blackhole"); если "" — не спавнит миньонов
-}
-
-// Каталог видов петалей. Статы далее умножаются на редкость (rarityDanger).
-// Базовые «стартовые» виды (oval/thorns/rock/ball) лежат в земле и на них же
-// можно учиться крафтить; тематические (orb..entropy) дропаются с конкретных
-// мобов (см. mobDropKind).
-var petalKinds = map[string]PetalKind{
-	// Стартовые виды
-	"oval": {
-		Name: "Oval", Shape: "oval",
-		// Лайфстил (механика «лепесток»): при ударе лечит игрока lifestealPct
-		// от нанесённого урона — састийн в бою.
-		BaseHP: 8.0, BaseDMG: 4.0,
-		Lifesteal: true,
-	},
-	"thorns": {
-		Name: "Thorns", Shape: "thorns",
-		// Шипы («размен»): прямой урон высокий, HP низкое. За каждый износ
-		// (моб бьёт шип) моб получает обратно thornsReflectRatio × урон износа.
-		// Чем больнее бьёт моб — тем больше «сам колется» о шип.
-		BaseHP: 5.0, BaseDMG: 7.0,
-		Thorns: true,
-	},
-	"rock": {
-		Name: "Rock", Shape: "rock",
-		// Броня (механика «камень»): износ от ударов мобов снижен (armorWearMult),
-		// камень живучий.
-		BaseHP: 14.0, BaseDMG: 2.5,
-		Armor: true,
-	},
-	"ball": {
-		Name: "Ball", Shape: "circle",
-		// Бомба (механика «шарик»): при ударе мини-АОЕ вокруг точки удара
-		// (bombRadius, урон bombDmgFrac).
-		BaseHP: 6.0, BaseDMG: 3.0,
-		Bomb: true,
-	},
-	// Тематические виды (дроп с мобов)
-	"orb": {
-		Name: "Orb", Shape: "circle",
-		// Реген (механика «сфера»): пока петаль на орбите, лечит игрока
-		// orbRegenFrac × rarityDanger от макс. HP в секунду. НЕ стакается:
-		// работает только ОДИН реген — максимальной редкости среди живых.
-		BaseHP: 7.0, BaseDMG: 4.0,
-		Regen: true,
-	},
-	"pebble": {
-		Name: "Pebble", Shape: "rock",
-		// Праща (механика «галька»): сильный толчок моба и почти без кулдауна
-		// удара (pebbleHitCD) — быстрый контроль. «Желе»: микро-пуш и немного HP.
-		BaseHP: 9.0, BaseDMG: 3.0,
-		Sling: true,
-	},
-	"shard": {
-		Name: "Shard", Shape: "thorns",
-		// Рана (механика «осколок»): при ударе оставляет короткий DoT (woundDuration)
-		// на цели — «зазубрина», добивает после отхода.
-		BaseHP: 5.5, BaseDMG: 9.0,
-		Wound: true,
-	},
-	"cog": {
-		Name: "Cog", Shape: "oval",
-		// Заводка (механика «шестерёнка»): пока петаль на орбите, укорачивает
-		// кулдаун удара ВСЕХ петалей (атаки чаще), величина зависит от редкости,
-		// стакается (кап overdriveCapMult). Ускорение вращения орбиты переехало
-		// к whirl. Дроп с Cog-моба.
-		BaseHP: 10.0, BaseDMG: 4.5,
-		Overdrive: true,
-	},
-	"whirl": {
-		Name: "Whirl", Shape: "whirl",
-		// Вихрь (механика «спиннер»): маленький круглый спиннер — носитель
-		// ускорителя орбиты. Дроп со Spinner-моба: способности прежней
-		// «шестерёнки» (Spin) на новом круглом теле.
-		BaseHP: 10.0, BaseDMG: 4.5,
-		Spin: true,
-	},
-	"blade": {
-		Name: "Blade", Shape: "thorns",
-		// Миссил (механика «клинок»): по пробелу вылетает по касательной к
-		// орбите (в направлении, куда он направлен в момент нажатия), бьёт
-		// мобов на пути и уходит на кулдаун (bladeCooldown).
-		BaseHP: 5.0, BaseDMG: 10.0,
-		Missile: true,
-	},
-	"viper": {
-		Name: "Viper", Shape: "thorns",
-		// Яд (механика «гадюка»): HP нет (1 = «растворяется» при первом же
-		// касании), зато каждый удар вешает на цель DoT-яд
-		// (poisonDpsMult × DMG, poisonDuration с). Пул яда ЕДИНЫЙ и НЕ
-		// стакается: повторные удары освежают таймер и держат максимальную
-		// силу (take-max), но НЕ складывают DPS от нескольких гадюк.
-		// Роль — жало-носитель яда: прямой урон невелик, весь ДПС — в яде
-		// (того же тира держит уровень Spark). Гейтинг по редкости: на моба
-		// ВЫШЕ тира петаля яд ослаблен ×poisonCrossTierMult — square-Viper
-		// больше не «растворяет» Polygon-мобов.
-		BaseHP: 1.0, BaseDMG: 8.0,
-		Poison: true,
-	},
-	"cube": {
-		Name: "Cube", Shape: "rock",
-		// Гравитационный толчок (механика «грузовой танк»): куб тяжёлый и при
-		// ударе сильно отталкивает моба назад; урон минимальный — пуш-петаль.
-		BaseHP: 15.0, BaseDMG: 2.0,
-		Push: true,
-	},
-	"bulwark": {
-		Name: "Bulwark", Shape: "rock",
-		// MaxHP (механика «бастион»): пока петаль на орбите, добавляет к макс.
-		// HP игрока bulwarkMaxHPFrac × rarityDanger от базового MaxHP.
-		// Урон снижен — это танк-стат, а не дамагер.
-		BaseHP: 26.0, BaseDMG: 2.0,
-		MaxHP: true,
-	},
-	"penta": {
-		Name: "Penta", Shape: "pentagon",
-		// Ускорение (механика «пентаграмма»): повышает скорость передвижения
-		// игрока на (swiftBasePct + swiftPerRarity×редкость); стакается.
-		BaseHP: 9.0, BaseDMG: 6.5,
-		Swift: true,
-	},
-	"shield": {
-		Name: "Shield", Shape: "shield",
-		// Щит (механика «барьер»): автоматически пополняет синюю полоску щита
-		// игрока (броня перед HP). Каждый активный щит даёт ёмкость MaxShield и
-		// периодически (shieldChargeInterval) заряжает её.
-		BaseHP: 13.0, BaseDMG: 6.0,
-		Shield: true,
-	},
-	"hex": {
-		Name: "Hex", Shape: "hexagon",
-		// Магнит (механика «гекс»): притягивает все петали-дропы с пола к
-		// игроку в радиусе, растёт с редкостью (hexMagnet*).
-		BaseHP: 10.0, BaseDMG: 7.0,
-		Magnet: true,
-	},
-	"hiveling": {
-		Name: "Hiveling", Shape: "circle",
-		// Разрыв (механика «рой»): HP нет (1 = лопается от первого касания),
-		// при уничтожении выпускает ОСКОЛКИ в ближайших врагов — это «условный
-		// миссайл»: весь смысл в осколках, не в теле.
-		BaseHP: 1.0, BaseDMG: 9.0,
-		Split: true,
-	},
-	"fractalite": {
-		Name: "Fractalite", Shape: "thorns",
-		// Самоподобие (механика «фрактал»): при ударе с шансом twinChance бьёт
-		// дважды. HP нет (1) — «как чип во флорке»: шанс/рнг и высокий урон.
-		BaseHP: 1.0, BaseDMG: 15.0,
-		Twin: true,
-	},
-	"spark": {
-		Name: "Spark", Shape: "spark",
-		// Цепь (механика «молния»): при ударе бьёт ближайших врагов цепью
-		// (sparkChainLinkCount звеньев, каждый следующий ×(1-sparkChainFalloff)
-		// от предыдущего). Визуальная линия-цепь (см. sparkChain).
-		BaseHP: 4.67, BaseDMG: 8.0, // дебаф ÷1.5
-		Chain: true,
-	},
-	"fragwall": {
-		Name: "Fragwall", Shape: "rock",
-		// Барьер-щит (механика «стена»): пассивно снижает входящий урон игрока
-		// на (guardBasePct + guardPerRarity×редкость) за петаль, стакается
-		// (но не ниже 20% от полного урона). Задача — ДЕФ, урон минимальный.
-		BaseHP: 19.0, BaseDMG: 1.0,
-		Guard: true,
-	},
-	"void": {
-		Name: "Void", Shape: "circle",
-		// Рывок (механика «бездна»): по пробелу тратит петаль (уходит в перезарядку)
-		// и делает рывок на voidDashDist по направлению движения (см. dashVoid).
-		BaseHP: 11.0, BaseDMG: 12.0,
-		Dash: true,
-	},
-	"entropy": {
-		Name: "Entropy", Shape: "spark",
-		// Спавн-петаль: НЕ наносит урона сам (только HP — «выживает» для
-		// призыва миньонов). Весь урон дают миньоны.
-		// Редкость/сила призыва — по таблице summonSpec (тот же тир моба, что
-		// и редкость петеля; Pentagon+ — Square ×2 / Polygon с MK-именами);
-		// HP и DMG миньона — ТОЧНЫЕ статы враждебного моба того же типа и
-		// редкости (mobStatsForRarity), умноженные на множитель усиления.
-		BaseHP: 8.0, BaseDMG: 0.0,
-		MinionType: "entropy",
-	},
-	// === Новые виды из витринных мокапов (дроп с новых мобов) ===
-	"singularity": {
-		Name: "Singularity", Shape: "circle",
-		// Спавн-петаль (как Entropy): сам не бьёт (DMG 0), призывает миньонов
-		// Black Hole по той же таблице summonSpec, что и Entropy (редкость моба
-		// = редкости петеля для Point..Square, Pentagon+ — усиленные с MK-
-		// именами). HP и DMG миньона — ТОЧНЫЕ статы враждебного моба того же
-		// типа и редкости (mobStatsForRarity), умноженные на множитель.
-		BaseHP: 10.0, BaseDMG: 0.0,
-		MinionType: "blackhole",
-	},
-	"tear": {
-		Name: "Tear", Shape: "tear",
-		// Слеза (механика «слёзы»): когда моб ЛОМАЕТ петаль, она лечит игрока
-		// tearHealBasePct × (1 + 0.5×редкость) от MaxHP. Стакается.
-		BaseHP: 9.0, BaseDMG: 3.0,
-		Tear: true,
-	},
-	"line": {
-		Name: "Line", Shape: "line",
-		// Линия (механика «антенна»): аксессуар (макс. 1, узор реже с ростом
-		// редкости). Визуально «антенна» на игроке; радиус обзора клиент
-		// считает геометрически: 1500 × 1.1^редкость (потолок lineViewCap).
-		// Сервер спец-механик не имеет (viewW/viewH шлёт клиент).
-		BaseHP: 10.0, BaseDMG: 0.0,
-		View: true,
-	},
-	"compass": {
-		Name: "Compass", Shape: "circle",
-		// Компас (механика «компас»): сервер раз в 1 с шлёт игроку угол на
-		// ближайшего живого моба с Rarity ≥ Fractal в ЕГО зоне (работает только
-		// на втором уровне 8-15). Стрелка на кружке петеля рисуется клиентом.
-		BaseHP: 14.0, BaseDMG: 1.0,
-		Compass: true,
-	},
-	"saturn": {
-		Name: "Saturn", Shape: "saturn",
-		// Кольца (механика «сатурн», макс. 1): кольцо-аура вокруг игрока
-		// (радиус saturnRingBase + saturnRingPerRar×редкость), враги в кольце
-		// получают тиковый урон saturnDpsBase×petalPower и лёгкий отброс.
-		// Бафф: больше HP петали (16→22) и сильнее прямой удар (5→7).
-		BaseHP: 22.0, BaseDMG: 7.0,
-		Saturn: true,
-	},
-	"rune": {
-		Name: "Rune", Shape: "rune",
-		// Руна (механика «руна»): удары вешают руну на моба (макс. runeStackNeed,
-		// истекает через runeStackDur). Набрав 3 — взрыв AoE runeBoomMult×DMG
-		// вокруг моба (runeBoomRadius). Счётчик рун — на сервере на мобе.
-		BaseHP: 13.0, BaseDMG: 7.0,
-		Rune: true,
-	},
-	"eye": {
-		Name: "Eye", Shape: "eye",
-		// Глаз (механика «глаз», макс. 1): аксессуар. Увеличивает радиус орбиты
-		// всех петалей на eyeOrbitPerRar×редкость (r7 ≈ ×1.7), петали разлетаются
-		// шире ПЛАВНО (ramp в updatePlayer). Визуально «глаз» в центре игрока.
-		BaseHP: 14.0, BaseDMG: 0.0,
-		Eye: true,
-	},
-	"spike": {
-		Name: "Spike", Shape: "spike",
-		// Шип (механика «шип»): аксессуар — обводка из шипов вокруг игрока,
-		// орбиту НЕ занимает, КУЛДАУНА ИМЕЕТ, пассив. Прибавляет УРОН К ТЕЛУ
-		// игрока: каждый надетый spike ДОБАВЛЯЕТ spikeBodyBase×rarityDanger
-		// к контактному урону тела (складывается, см. bodySpikeDmg).
-		BaseHP: 10.0, BaseDMG: 0.0,
-	},
-	"rhombus": {
-		Name: "Rhombus", Shape: "rhombus",
-		// Ромб (механика «замедление»): каждый удар замедляет моба на
-		// rhombusSlowPct на rhombusDur (макс. SlowT = rhombusMaxT). Работает
-		// ТОЛЬКО если редкость моба <= редкости петеля (см. fightPetalsVsMobs).
-		// Дроп с редкого нейтрального Prism (Square-зона).
-		BaseHP: 14.0, BaseDMG: 6.0,
-		Slow: true,
-	},
-	"twirl": {
-		Name: "Twirl", Shape: "twirl",
-		// Вертушка (механика «разворот»): вытянутый ромб-двусторонний дротик.
-		// ПОКА ПЕТАЛЬ НА ОРБИТЕ — направление вращения всей орбиты мгновенно
-		// разворачивается (было по часовой → стало против, и наоборот). Каждый
-		// Twirl переворачивает направление (парность): один — в обратную,
-		// два — снова по часовой. Дроп с Rune-моба (редкая подмена).
-		BaseHP: 10.0, BaseDMG: 6.0,
-		Twirl: true,
-	},
-}
-
-// Виды, из которых случайно выбирается петаль на земле.
-var petalKindsPool = []string{"oval", "thorns", "rock", "ball"}
-
 // Спавн петалей-предметов на земле: сколько их и в каких зонах.
 var zonePetalCount = []int{5, 5, 5, 5, 5, 4, 4, 3}
 
-// Каждый тип моба при смерти "дропает" конкретный вид петеля.
-var mobDropKind = map[string]string{
-	"dot":       "orb",
-	"pebble":    "pebble",
-	"dart":      "shard",
-	"spinner":   "whirl",
-	"triangle":  "blade",
-	"arrow":     "viper",
-	"square":    "cube",
-	"block":     "bulwark",
-	"pentagon":  "penta",
-	"shield":    "shield",
-	"hexagon":   "hex",
-	"hive":      "hiveling",
-	"actal":     "fractalite",
-	"fragspark": "spark",
-	"fragwall":  "fragwall",
-	"void":      "void",
-	"entropy":   "entropy",
-	// Витринные мокапы → реальные мобы
-	"beads":  "orb",
-	"tear":   "tear",
-	"comet":  "blade",
-	"beam":   "spark",
-	"spike":  "spike",
-	"cross":  "bulwark",
-	"star":   "spark",
-	"aeon":   "hex",
-	"rune":   "rune",
-	"cog":    "cog",
-	"sun":    "compass",
-	"mote":   "fractalite",
-	"saturn": "saturn",
-	"eye":    "void",
-	"galaxy": "void",
-	"blackhole": "singularity",
-	"prism":  "rhombus", // Prism дропает петаль Rhombus (замедление)
-}
 
-// mobRareDrop — РЕДКИЙ дроп: с малым шансом вместо обычного вида (mobDropKind)
-// у ДАННОГО игрока выпадает более ценный вид. Роллится per-player в
-// makeDropPetal, потому оба убийцы топ-4 могут получить один и тот же редкий.
-var mobRareDrop = map[string]RareDropDef{
-	"beads": {Kind: "line", Chance: 0.10}, // Линия: 10% вместо обычного orb
-	"eye":   {Kind: "eye", Chance: 0.01},  // Глаз: 1% вместо обычного void
-	"rune":  {Kind: "twirl", Chance: 0.05}, // Вертушка: 5% вместо обычного rune
-}
 
-// RareDropDef описывает редкий дроп типа моба.
-type RareDropDef struct {
-	Kind   string
-	Chance float64 // 0..1 — вероятность ПОДМЕНЫ обычного вида
-}
 
 // blackHoleDropChance — шанс дропа Singularity с Black Hole (per-mob roll,
 // один бросок на убийство, затем все топ-4 дамагеры получают петаль).
 const blackHoleDropChance = 0.2
 
-// Дроп-таблица редкости петеля после убийства моба.
-// Запись [редкость моба] = [вес Point..Chaos] (8 редкостей, сумма 1000 = 100%).
-// Кривая «колокол с центром на -1 тир»: большинство дропа — на 1 тир ниже моба.
-// Правило «максимум — редкость самого моба»: Point-моб кидает только Point,
-// всё до Fractal включительно — максимум свой тир, Chaos-моб — максимум Fractal
-// (столбец Chaos везде 0).
-// Явные качели по редкостям (настройка пользователя, «чтобы шестиугольник был вкусным»):
-//   - Hexagon-моб: собственный Hexagon УЛЬТРА-редкий (0.4%), центр — Square (72.6%),
-//     Polygon — 15%;
-//   - Fractal-моб: Hexagon РЕДКИЙ (10%), собственный Fractal — 0.2%, центр —
-//     Polygon (80%);
-//   - Chaos-моб: НИЧЕГО ниже Pentagon (реркость 4+), Hexagon — основной (73%),
-//     Fractal — 2%.
-var mobRarityDrop = [][]int{
-	{1000, 0, 0, 0, 0, 0, 0, 0},    // Point моб: только свой тир (100%)
-	{780, 220, 0, 0, 0, 0, 0, 0},   // Line моб: 78 Point / 22 Line
-	{345, 580, 75, 0, 0, 0, 0, 0},  // Triangle моб: 34.5/58/7.5 (порт родителя: центр на тире моба)
-	{20, 706, 250, 24, 0, 0, 0, 0}, // Square моб: 2/70.6%/25%/2.4% (порт родителя)
-	// Polygon моб (ребаланс): свой Polygon дроп порезан до ~1.2%;
-	// освободившаяся масса ушла в Square/Triangle/Line.
-	{0, 16, 148, 824, 12, 0, 0, 0},
-	// Hexagon моб (ребаланс): центр Square (~80%), Polygon ~16%, СВОЙ
-	// Hexagon — 1.67%.
-	{0, 0, 13, 800, 160, 16, 0, 0},
-	// Fractal моб (ребаланс): Hexagon = 16.7% (1/6), Fractal 0.2%, центр Polygon 74%.
-	{0, 0, 8, 83, 740, 167, 2, 0},
-	{0, 0, 0, 0, 250, 730, 20, 0}, // Chaos моб: 25 Polygon/73 Hexagon/2% Fractal, никогда Chaos
-	// Истинная лестница (8..15): дроп-правила копируют парные ступени
-	// (Dot как Point, Vector как Line, … Origin как Chaos). Петали истинных
-	// редкостей дропом не падают — только крафт (порт родителя).
-	{1000, 0, 0, 0, 0, 0, 0, 0},
-	{780, 220, 0, 0, 0, 0, 0, 0},
-	{345, 580, 75, 0, 0, 0, 0, 0},
-	{20, 706, 250, 24, 0, 0, 0, 0},
-	{0, 16, 148, 824, 12, 0, 0, 0},
-	{0, 0, 13, 800, 160, 16, 0, 0},
-	{0, 0, 8, 83, 740, 167, 2, 0},
-	{0, 0, 0, 0, 250, 730, 20, 0},
-}
 
 // ---- Моб ----
 
@@ -962,17 +333,6 @@ type Mob struct {
 	Label    string
 }
 
-type MobType struct {
-	Name       string
-	Color      uint32
-	BaseHP     float64
-	BaseDMG    float64
-	BaseSpeed  float64
-	BaseRadius float64
-	AggroRange float64
-	Shape      string
-	Peaceful   bool // нейтральный моб: агрится только если игрок сам его ударил
-}
 
 type MobState struct {
 	ID         string           `json:"id"`
@@ -1037,21 +397,6 @@ type GroundPetalState struct {
 
 // ---- Орбитальная петаль игрока ----
 
-// PetalDef — «предмет» петали (инвентарь/хотбар). Определяет, какая петаль
-// есть у игрока; боевую копию на орбите даёт Petal. Комбинация (Kind, Rarity)
-// определяет статы и внешний вид.
-type PetalDef struct {
-	ID     string  `json:"id"`
-	Kind   string  `json:"kind"`
-	Rarity int     `json:"rarity"`
-	HP     float64 `json:"hp"`
-	MaxHP  float64 `json:"maxHp"`
-	DMG    float64 `json:"dmg"`
-	Size   float64 `json:"size"`
-	Color  uint32  `json:"color"`
-	Mass   float64 `json:"mass,omitempty"` // масса петеля (0 = вычислить от редкости)
-	Name   string  `json:"name,omitempty"` // имя вида (для отображения)
-}
 
 // InvStack — стак одинаковых петалей в инвентаре (вид + редкость совпадают).
 // Count — сколько таких петалей в запасе (не на хотбаре). Встраивает PetalDef,
