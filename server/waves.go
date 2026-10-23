@@ -470,7 +470,8 @@ func (r *Room) updateWaves(dt float64) {
 			r.waveRunning = false
 			r.wavePending = false
 			r.waveOver = true
-			r.broadcastWaveState("gameover")
+			// Статистика забега в сообщении gameover: волна + киллы команды.
+			r.broadcastWaveGameOver()
 			// Рекорд «лучшая волна» — в БД каждому участнику.
 			for _, p := range r.players {
 				nick := p.State.Name
@@ -542,6 +543,7 @@ func (r *Room) beginWaves() {
 	// Перезапуск после вайпа/паузы — всегда с волны 1, с чистой ареной.
 	r.waveOver = false
 	r.waveNum = 0
+	r.waveKills = 0
 	r.clearWaveMobs()
 	// Мёртвых поднимаем к старту матча.
 	for _, p := range r.players {
@@ -567,6 +569,19 @@ func (r *Room) broadcastWaveState(state string) {
 		breakT = r.waveBreakT
 	}
 	m := WaveMsg{Type: "wave", Num: r.waveNum, Special: r.waveSpecial, State: state, Break: breakT}
+	b, err := json.Marshal(m)
+	if err != nil {
+		return
+	}
+	for _, c := range r.clients {
+		c.deliver(b)
+	}
+}
+
+// broadcastWaveGameOver — gameover со статистикой забега (2.0): достигнутая
+// волна, киллы команды и рекорд (рекорд обновляется параллельно в MongoDB).
+func (r *Room) broadcastWaveGameOver() {
+	m := WaveMsg{Type: "wave", Num: r.waveNum, State: "gameover", Kills: r.waveKills, Best: r.waveNum}
 	b, err := json.Marshal(m)
 	if err != nil {
 		return

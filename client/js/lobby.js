@@ -794,7 +794,10 @@ function handleWaveMsg(msg) {
             if (deathTitle) deathTitle.textContent = 'GAME OVER';
             if (deathSub) { deathSub.style.display = 'none'; }
             if (deathWaveLine) {
-                deathWaveLine.textContent = 'Your party reached wave ' + msg.num;
+                let line = 'Your party reached wave ' + msg.num;
+                if (msg.kills) line += ' · Kills: ' + msg.kills;
+                if (msg.best && msg.best > msg.num) line += ' · Best: wave ' + msg.best;
+                deathWaveLine.textContent = line;
                 deathWaveLine.style.display = 'block';
             }
             break;

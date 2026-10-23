@@ -84,6 +84,7 @@ type Room struct {
 	waveRarFloor      int
 	waveRarCeil       int
 	waveArenaR        float64 // текущий радиус арены (растёт с волной, 2.0)
+	waveKills         int     // киллы команды за матч (статистика gameover, 2.0)
 	stopCh            chan struct{} // закрытие комнаты лобби: остановка gameLoop/autosave
 }
 
@@ -2110,6 +2111,9 @@ func (r *Room) awardMobKill(m *Mob) {
 		return
 	}
 	m.DeadAwarded = true
+	if r.waveMode {
+		r.waveKills++
+	}
 
 	// Опыт убийце (порт родителя): детерминированный killXPFor с анти-фармом
 	// tierGap (редкости ниже тира игрока дают меньше).

@@ -183,6 +183,8 @@ type WaveMsg struct {
 	Special string  `json:"special,omitempty"`
 	State   string  `json:"state"`
 	Break   float64 `json:"break,omitempty"`
+	Kills   int     `json:"kills,omitempty"` // gameover: суммарные киллы команды за матч
+	Best    int     `json:"best,omitempty"`  // gameover: рекордный забег (>= текущего)
 }
 
 // WaveRosterEntry — живые мобы волны по типу+редкости (для чипов под баром).

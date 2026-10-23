@@ -1253,18 +1253,29 @@ function renderSpinner() {
 }
 
 // Центр катушки: петаль результата + количество (или «пусто»).
-function renderCenter(kind, rarity, count, pop) {
+function renderCenter(kind, rarity, count, pop, pot) {
     const icon = document.getElementById('craftCenterIcon');
     const cnt = document.getElementById('craftCenterCount');
+    let grade = document.getElementById('craftCenterGrade');
     if (!icon || !cnt) return;
+    if (!grade) {
+        // Грейд-ревил (2.0): подпись UNIQUE..PARAGON под результатом крафта.
+        grade = document.createElement('div');
+        grade.id = 'craftCenterGrade';
+        grade.style.cssText = 'font-size:9px;font-weight:800;letter-spacing:.5px;color:#5a4200;'
+            + 'text-shadow:0 0 3px rgba(255,255,255,.7);margin-top:2px;line-height:1;max-width:90px;text-align:center;';
+        cnt.parentNode.appendChild(grade);
+    }
     if (!kind) {
         icon.innerHTML = '';
         cnt.textContent = '';
+        grade.textContent = '';
         return;
     }
     const col = rarityColors[Math.min(rarity, rarityColors.length - 1)];
     icon.innerHTML = petalSVG(kind, col);
     cnt.textContent = '×' + (count || 1);
+    grade.textContent = pot > 100 ? gradeLabelOf(pot).split(' ×')[0] : '';
     if (pop) {
         // Успех: петаль в центре становится ЧУТЬ БОЛЬШЕ (пока ждёт «Забрать»)
         // с золотым свечением, количество тоже крупнее.
@@ -1527,7 +1538,10 @@ async function doCraft() {
         // После крафта полоса всегда пустая; в центре — результат, если он был.
         drawWheelBand(null, 0, 0);
         if (successes > 0) {
-            renderCenter(data.kind, nextRar, successes, true);
+            // Грейд-ревил: показываем ЛУЧШИЙ грейд из результатов (порт родителя).
+            let bestPot = 0;
+            for (const pd of craftPending) if ((pd.pot || 0) > bestPot) bestPot = pd.pot;
+            renderCenter(data.kind, nextRar, successes, true, bestPot);
             craftFlash(inner, 'flash-ok');
             if (craftPending.length > 0) {
                 setCraftResult(`Successful: ${successes} · Lost: ${consumed}\u00A0— press «Take» to claim ${craftPending.length} shapes.`);
