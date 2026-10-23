@@ -9,24 +9,14 @@ import (
 // mob.go - мобы и петали-предметы: типы, статы, редкости, спавн, ИИ.
 
 // Rarity-подобные множители.
-// Обе прогрессии СТРОГО геометрические:
+// rarityDanger (HP и урон мобов, ×1.5 за тир) и petalPower (сила петалей) —
+// единый реестр: server/rarity (rarity_registry.go), 16 редкостей.
 //
-//	dangerMult (HP и урон) — ×1.5 за тир, Chaos (7) = 1.5^7 ≈ 17.09x;
 //	sizeMult (радиус) — нарастающая кривая (1, 1.6, 2.5, 3.5, 5, 7, 12, 20):
 //	Chaos (7) в 20 раз больше базы (действует лимит limitMobSizeForZone:
 //	радиус ≤ 18% ширины зоны). Chaos — самый большой и редкий тир;
 //	aggroMult — множитель радиуса агрессии: чем выше редкость, тем дальше
 //	моб ЗАМЕЧАЕТ игрока (Chaos видит в 6 раз дальше базового радиуса).
-var rarityDanger = []float64{1.0, 1.5, 2.25, 3.375, 5.0625, 7.59375, 11.390625, 17.0859375}
-
-// petalPower — кривая силы ПЕТАЛЕЙ (HP/DMG/эффекты), ОТДЕЛЬНО от кривой
-// опасности мобов. Ребаланс (текущий): Polygon/Pentagon (r4) 6.0 и Hexagon
-// (r5) 12.0 усилены — раньше Polygon (4.5) был «еле сильнее» Square (3.375),
-// теперь заметно сильнее: Square(3.375) → Pentagon(6.0) = ×1.78,
-// Pentagon → Hexagon(12.0) = ×2, Hexagon → Fractal(27.0) = ×2.25,
-// Fractal → Chaos(81.0) = ×3. Высокие тиры петалей НАМНОГО сильнее:
-// фулл фрактал-сет обязан заметно превосходить фулл полигон-сет.
-var petalPower = []float64{1.0, 1.5, 2.25, 3.375, 6.0, 12.0, 27.0, 81.0}
 
 // petalDmgMult — ОБЩИЙ множитель урона ВСЕХ петалей (применяется на попадании:
 // ближний бой, клинки, осколки hiveling). Плоский ×2 вместо раздельных
@@ -43,8 +33,16 @@ func petalVsMobMult(petalR, mobR int) float64 {
 	}
 	return 1.0
 }
-var raritySize = []float64{1.0, 1.6, 2.5, 3.5, 5.0, 7.0, 12.0, 20.0}
-var rarityAggro = []float64{1.0, 1.3, 1.6, 2.0, 2.5, 3.2, 4.5, 6.0}
+// raritySize (радиус) — 0..7 зонная лестница (Chaos ×20 базы), 8..14 —
+// интерполяция по той же геометрии между парными ступенями, Origin (15) — 26.
+// Действует лимит limitMobSizeForZone радиуса.
+var raritySize = []float64{1.0, 1.6, 2.5, 3.5, 5.0, 7.0, 12.0, 20.0,
+	1.2649110640673518, 2.0, 2.958039891549808, 4.183300132670238, 5.916079783099616, 9.16515138991168, 15.491933384829668, 26.0}
+
+// rarityAggro — множитель радиуса агрессии; истинные тиры — интерполяция,
+// Origin ×8 базы (Chaos — 6).
+var rarityAggro = []float64{1.0, 1.3, 1.6, 2.0, 2.5, 3.2, 4.5, 6.0,
+	1.1401754250991379, 1.4422205101856424, 1.7888543819998317, 2.23606797749979, 2.8284271247461903, 3.794733192202355, 5.196152422706632, 8.0}
 
 // mobHPDanger — кривая ЗАПАСА HP мобов (переменная, не равная rarityDanger).
 // Урон растёт по rarityDanger (×1.5/тир), а HP — по более «толстой» кривой:
@@ -56,7 +54,10 @@ var rarityAggro = []float64{1.0, 1.3, 1.6, 2.0, 2.5, 3.2, 4.5, 6.0}
 // Нижние тиры почти не меняются (новичкам не сложнее). Fractal (6) и Chaos (7)
 // остаются равными rarityDanger[6], rarityDanger[7] — формулы боссов
 // (admin_test, баланс) обязаны совпадать.
-var mobHPDanger = []float64{1.0, 1.7, 2.9, 6.44, 9.52, 9.5, 11.390625, 17.0859375}
+// Индексы 8..14 (истинная лестница) — интерполяция: парная ступень ×√1.5;
+// Origin (15) — парная ступень (Chaos) ×1.5. Порт из родителя.
+var mobHPDanger = []float64{1.0, 1.7, 2.9, 6.44, 9.52, 9.5, 11.390625, 17.0859375,
+	1.2247448713915892, 2.0820662813657013, 3.5517601270356085, 7.887356971761834, 11.65957119580793, 11.635076278220097, 13.950609550574818, 25.62890625}
 
 type rarityWeights = []int
 
@@ -845,19 +846,30 @@ const blackHoleDropChance = 0.2
 //   - Chaos-моб: НИЧЕГО ниже Pentagon (реркость 4+), Hexagon — основной (73%),
 //     Fractal — 2%.
 var mobRarityDrop = [][]int{
-	{1000, 0, 0, 0, 0, 0, 0, 0},     // Point моб: только свой тир (100%)
-	{780, 220, 0, 0, 0, 0, 0, 0},    // Line моб: 78 Point / 22 Line
-	{90, 580, 330, 0, 0, 0, 0, 0},   // Triangle моб: 9/58/33
-	{20, 150, 550, 280, 0, 0, 0, 0}, // Square моб: 2/15/55/28
+	{1000, 0, 0, 0, 0, 0, 0, 0},    // Point моб: только свой тир (100%)
+	{780, 220, 0, 0, 0, 0, 0, 0},   // Line моб: 78 Point / 22 Line
+	{345, 580, 75, 0, 0, 0, 0, 0},  // Triangle моб: 34.5/58/7.5 (порт родителя: центр на тире моба)
+	{20, 706, 250, 24, 0, 0, 0, 0}, // Square моб: 2/70.6%/25%/2.4% (порт родителя)
 	// Polygon моб (ребаланс): свой Polygon дроп порезан до ~1.2%;
 	// освободившаяся масса ушла в Square/Triangle/Line.
 	{0, 16, 148, 824, 12, 0, 0, 0},
 	// Hexagon моб (ребаланс): центр Square (~80%), Polygon ~16%, СВОЙ
 	// Hexagon — 1.67%.
-	{0, 0, 13, 800, 160, 17, 0, 0},
+	{0, 0, 13, 800, 160, 16, 0, 0},
 	// Fractal моб (ребаланс): Hexagon = 16.7% (1/6), Fractal 0.2%, центр Polygon 74%.
 	{0, 0, 8, 83, 740, 167, 2, 0},
 	{0, 0, 0, 0, 250, 730, 20, 0}, // Chaos моб: 25 Polygon/73 Hexagon/2% Fractal, никогда Chaos
+	// Истинная лестница (8..15): дроп-правила копируют парные ступени
+	// (Dot как Point, Vector как Line, … Origin как Chaos). Петали истинных
+	// редкостей дропом не падают — только крафт (порт родителя).
+	{1000, 0, 0, 0, 0, 0, 0, 0},
+	{780, 220, 0, 0, 0, 0, 0, 0},
+	{345, 580, 75, 0, 0, 0, 0, 0},
+	{20, 706, 250, 24, 0, 0, 0, 0},
+	{0, 16, 148, 824, 12, 0, 0, 0},
+	{0, 0, 13, 800, 160, 16, 0, 0},
+	{0, 0, 8, 83, 740, 167, 2, 0},
+	{0, 0, 0, 0, 250, 730, 20, 0},
 }
 
 // ---- Моб ----
@@ -1628,6 +1640,12 @@ func randMobType(zone int) string {
 // pickDropRarity выбирает редкость петеля-дропа по редкости моба
 // (см. mobRarityDrop). Chaos-моб не бросает Chaos (максимум Fractal).
 func pickDropRarity(mobRarity int) int {
+	if mobRarity < 0 {
+		mobRarity = 0
+	}
+	if mobRarity >= len(mobRarityDrop) {
+		mobRarity = len(mobRarityDrop) - 1
+	}
 	w := mobRarityDrop[mobRarity]
 	total := 0
 	for _, v := range w {
@@ -1670,11 +1688,11 @@ func mobStatsForRarity(mtype string, rar int) (hp, dmg float64) {
 	if rar == 5 {
 		hp *= hexMobHPMult
 	}
-	if rar >= len(rarityNames)-1 {
+	if rar >= rarityChaos {
 		hp *= chaosHPMult
 	}
 	// Fractal — жирный босс: должен убиваться ~50-60 секунд.
-	if rar == len(rarityNames)-2 {
+	if rar == rarityFractal {
 		hp *= fractalHPMult
 	}
 	dmg = mt.BaseDMG * rarityDanger[rar] * mobDmgMult
@@ -1695,9 +1713,9 @@ func summonMobStats(mtype string, rar int) (hp, dmg float64) {
 	switch {
 	case rar == 5:
 		hp /= hexMobHPMult
-	case rar == len(rarityNames)-2:
+	case rar == rarityFractal:
 		hp /= fractalHPMult
-	case rar >= len(rarityNames)-1:
+	case rar >= rarityChaos:
 		hp /= chaosHPMult
 	}
 	if rar >= 5 {
@@ -1720,7 +1738,7 @@ func scaleMobForRarity(m *Mob, rar int) {
 	// Shiny/Golden: HP ×20 (обычные) или ×50 для золотых Fractal/Chaos.
 	// Golden-«рассадники» (Hive / Actal) наследуют Golden своим призывам.
 	if m.Golden {
-		if rar >= len(rarityNames)-2 {
+		if rar >= rarityFractal {
 			hp *= goldBossHPMult
 		} else {
 			hp *= goldHPMult
@@ -1774,10 +1792,10 @@ const mobPetalsRespawnMax = 5.0 // рандом 3-5 с до возрождени
 
 // mobPetalCount — сколько петалей орбит у моба (Fractal 4, Chaos 6, прочие 0).
 func mobPetalCount(rar int) int {
-	if rar >= len(rarityNames)-1 {
+	if rar >= rarityChaos {
 		return 6
 	}
-	if rar == len(rarityNames)-2 {
+	if rar == rarityFractal {
 		return 4
 	}
 	return 0

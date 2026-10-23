@@ -16,7 +16,7 @@ import (
 const (
 	waveBreakDuration = 3.0   // пауза между волнами
 	waveStartBreak    = 5.0  // секунд до первой волны после старта
-	waveMaxRarity     = 7    // Chaos — последняя редкость (len(rarityNames)-1)
+	waveMaxRarity     = rarityChaos // потолок редкостей волн (пока Chaos; этап 6 поднимет до Origin)
 	waveSpawnNearDist = 350  // мобы появляются не дальше этого от случайного игрока
 	waveSpawnSafeDist = 300.0 // ...но не ближе этого к живому игроку (не на голове)
 	waveArenaRadius   = 1300 // радиус круглой арены (фиксированный, от волны не растёт)
@@ -236,7 +236,7 @@ func (r *Room) startWave(n int) {
 		r.waveMaxAlive = 12
 		r.waveSpawnInterval = 1.0
 		tname := randMobType(r.waveZone)
-		if m, ok := r.spawnWaveMobAt(tname, len(rarityNames)-2); ok {
+		if m, ok := r.spawnWaveMobAt(tname, rarityFractal); ok {
 			if txt := superSpawnText(r.waveZone, m); txt != "" {
 				r.broadcastSystemLocked("super", txt)
 			}

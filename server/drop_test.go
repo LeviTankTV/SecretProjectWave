@@ -11,8 +11,8 @@ import (
 func TestPickDropRarityBounds(t *testing.T) {
 	for mobRar := 0; mobRar < len(rarityNames); mobRar++ {
 		max := mobRar
-		if max > len(rarityNames)-2 {
-			max = len(rarityNames) - 2 // Chaos-моб максимум Fractal
+		if max > rarityFractal {
+			max = rarityFractal // Chaos-моб максимум Fractal
 		}
 		for i := 0; i < 5000; i++ {
 			r := pickDropRarity(mobRar)
@@ -29,7 +29,7 @@ func TestPickDropRarityHeadRates(t *testing.T) {
 	const N = 60000
 	ff := 0
 	for i := 0; i < N; i++ {
-		if pickDropRarity(len(rarityNames)-2) == len(rarityNames)-2 {
+		if pickDropRarity(rarityFractal) == rarityFractal {
 			ff++
 		}
 	}
@@ -39,7 +39,7 @@ func TestPickDropRarityHeadRates(t *testing.T) {
 	}
 	cf := 0
 	for i := 0; i < N; i++ {
-		if pickDropRarity(len(rarityNames)-1) == len(rarityNames)-2 {
+		if pickDropRarity(rarityChaos) == rarityFractal {
 			cf++
 		}
 	}
@@ -255,7 +255,7 @@ func TestAwardMobKillBossBonus(t *testing.T) {
 	r := newTestRoom()
 	r.gpIDSeq = 1
 	r.players["p1"] = &Player{State: PlayerState{ID: "p1", Name: "p1", Level: 1, Zone: 0}, hotbars: [2][]PetalDef{{}, {}}}
-	m := &Mob{ID: "f", Type: "actal", Rarity: len(rarityNames) - 2, X: 0, Y: 0, Zone: 0, HP: 1, MaxHP: 1,
+	m := &Mob{ID: "f", Type: "actal", Rarity: rarityFractal, X: 0, Y: 0, Zone: 0, HP: 1, MaxHP: 1,
 		Damage: map[string]float64{"p1": 1}}
 	m.KillerID = "p1"
 	r.awardMobKill(m)
@@ -263,7 +263,7 @@ func TestAwardMobKillBossBonus(t *testing.T) {
 		t.Fatalf("boss моб не дал дроп")
 	}
 	for _, g := range r.gp {
-		if g.OwnerID != "p1" || g.Rarity > len(rarityNames)-2 {
+		if g.OwnerID != "p1" || g.Rarity > rarityFractal {
 			t.Fatalf("плохой дроп босса: owner=%s rarity=%d", g.OwnerID, g.Rarity)
 		}
 	}
@@ -271,7 +271,7 @@ func TestAwardMobKillBossBonus(t *testing.T) {
 	// Chaos-моб: дроп не может быть Chaos (7).
 	r.gp = nil
 	r.gpIDSeq = 1
-	mc := &Mob{ID: "c", Type: "entropy", Rarity: len(rarityNames) - 1, X: 0, Y: 0, Zone: 0, HP: 1, MaxHP: 1,
+	mc := &Mob{ID: "c", Type: "entropy", Rarity: rarityChaos, X: 0, Y: 0, Zone: 0, HP: 1, MaxHP: 1,
 		Damage: map[string]float64{"p1": 1}}
 	mc.KillerID = "p1"
 	r.awardMobKill(mc)
@@ -279,7 +279,7 @@ func TestAwardMobKillBossBonus(t *testing.T) {
 		t.Fatalf("Chaos моб не дал дроп")
 	}
 	for _, g := range r.gp {
-		if g.Rarity >= len(rarityNames)-1 {
+		if g.Rarity >= rarityChaos {
 			t.Fatalf("Chaos моб дропнул Chaos (r=%d)", g.Rarity)
 		}
 	}
@@ -353,9 +353,9 @@ func TestPickupOwnerOnly(t *testing.T) {
 func TestRarityCaps(t *testing.T) {
 	initWorld()
 	m := Mob{Type: "dot", Zone: 0}
-	scaleMobForRarity(&m, len(rarityNames)-1)
+	scaleMobForRarity(&m, rarityChaos)
 	cHP, cR := m.HP, m.Radius
-	scaleMobForRarity(&m, len(rarityNames)-2)
+	scaleMobForRarity(&m, rarityFractal)
 	if m.HP >= cHP || m.Radius >= cR {
 		t.Fatalf("downgrade did not reduce stats: hp %v->%v, r %v->%v", cHP, m.HP, cR, m.Radius)
 	}
@@ -363,11 +363,11 @@ func TestRarityCaps(t *testing.T) {
 	if empty.chaosActive() {
 		t.Fatalf("empty room has chaos")
 	}
-	r1 := Room{mobs: []Mob{{Type: "dot", Rarity: len(rarityNames) - 1, HP: 10}}}
+	r1 := Room{mobs: []Mob{{Type: "dot", Rarity: rarityChaos, HP: 10}}}
 	if !r1.chaosActive() {
 		t.Fatalf("chaos not detected in room")
 	}
-	r2 := Room{mobs: []Mob{{Type: "dot", Rarity: len(rarityNames) - 2, HP: 10, Zone: 3}}}
+	r2 := Room{mobs: []Mob{{Type: "dot", Rarity: rarityFractal, HP: 10, Zone: 3}}}
 	if !r2.fractalInZone(3) {
 		t.Fatalf("fractal in zone 3 not detected")
 	}
@@ -388,7 +388,7 @@ func TestRarityCaps(t *testing.T) {
 func TestSuperSpawnNotification(t *testing.T) {
 	initWorld()
 	last := len(zones) - 1
-	tri := Mob{Type: "triangle", Rarity: len(rarityNames) - 1}
+	tri := Mob{Type: "triangle", Rarity: rarityChaos}
 	if txt := superSpawnText(0, tri); txt != "A Chaos Triangle has spawned!" {
 		t.Fatalf("first-zone chaos msg = %q", txt)
 	}
@@ -396,7 +396,7 @@ func TestSuperSpawnNotification(t *testing.T) {
 		t.Fatalf("super zone triangle msg = %q", txt)
 	}
 	// Fractal (6) даёт своё уведомление.
-	fr := Mob{Type: "square", Rarity: len(rarityNames) - 2}
+	fr := Mob{Type: "square", Rarity: rarityFractal}
 	if txt := superSpawnText(last, fr); txt != "A Fractal Square has spawned!" {
 		t.Fatalf("fractal rarity msg = %q", txt)
 	}
@@ -418,7 +418,7 @@ func TestGoldenChaosDefeatLabel(t *testing.T) {
 		inventory: []InvStack{},
 	}
 	m := &Mob{
-		ID: "mm", Type: "arrow", Rarity: len(rarityNames) - 1, Golden: true,
+		ID: "mm", Type: "arrow", Rarity: rarityChaos, Golden: true,
 		X: 100, Y: 100, Zone: 8, MaxHP: 1000,
 		Damage: map[string]float64{"killer": 99999}, KillerID: "killer",
 	}

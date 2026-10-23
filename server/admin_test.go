@@ -54,8 +54,8 @@ func TestMakeAdminMobBossStatsMatchReal(t *testing.T) {
 
 	type tok struct{ kind string; rar int; mult float64 }
 	cases := []tok{
-		{"actal", len(rarityNames) - 2, fractalHPMult},
-		{"entropy", len(rarityNames) - 1, chaosHPMult},
+		{"actal", rarityFractal, fractalHPMult},
+		{"entropy", rarityChaos, chaosHPMult},
 	}
 	for _, c := range cases {
 		m := makeAdminMob(c.kind, c.rar, 7, 0, 0, 1, "nothing")

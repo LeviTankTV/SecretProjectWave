@@ -104,7 +104,7 @@ func TestThornsReflectBossPetal(t *testing.T) {
 		Angle: 0, Dist: 50,
 	})
 	r.mobs = append(r.mobs, Mob{
-		ID: "m1", Type: "actal", Rarity: len(rarityNames) - 2,
+		ID: "m1", Type: "actal", Rarity: rarityFractal,
 		HP: 1000, MaxHP: 1000, DMG: 10, Speed: 10, Radius: bossR, Zone: 0,
 		Damage: map[string]float64{},
 		X:      bossX, Y: bossY,

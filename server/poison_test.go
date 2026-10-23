@@ -90,7 +90,7 @@ func TestPoisonDpsAndKill(t *testing.T) {
 func TestPoisonBossPetal(t *testing.T) {
 	r := &Room{players: map[string]*Player{}, clients: map[string]*Client{}}
 	r.mobs = append(r.mobs, Mob{
-		ID: "m1", Type: "actal", Rarity: len(rarityNames) - 2,
+		ID: "m1", Type: "actal", Rarity: rarityFractal,
 		HP: 1000, MaxHP: 1000, DMG: 10, Speed: 10, Radius: 30, Zone: 0,
 		Damage: map[string]float64{},
 		X: 100, Y: 100,

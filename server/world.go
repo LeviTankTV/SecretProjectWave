@@ -121,8 +121,9 @@ var zoneColors = []uint32{
 	0x0e5748, // TestRoom — тёмно-бирюзовый (витрина Hexagon-мокапов)
 }
 
-// 8 редкостей (отдельно от зон!), по возрастанию силы.
-var rarityNames = []string{"Point", "Line", "Triangle", "Square", "Polygon", "Hexagon", "Fractal", "Chaos"}
+// Редкости (отдельно от зон!) — единый реестр server/rarity (rarity_registry.go):
+// 16 ступеней, Point..Chaos (0..7) + истинная Dot..Origin (8..15).
+// Индекс 4 — Pentagon (раньше ошибочно назывался «Polygon»).
 
 const portalSize   = 140.0
 const portalHeight = 140.0

@@ -8,17 +8,21 @@ import (
 // ---- Крафт петалей (florr.io style) ----
 // Из 5 петалей ОДНОЙ редкости и ОДНОГО вида пытаемся получить 1 петаль
 // той же редкости+1. Шанс успеха зависит от исходной редкости.
-// Индексы редкости: 0 Point, 1 Line, 2 Triangle, 3 Square, 4 Polygon,
-// 5 Hexagon, 6 Fractal, 7 Chaos.
+// Индексы редкости: 0 Point, 1 Line, 2 Triangle, 3 Square, 4 Pentagon,
+// 5 Hexagon, 6 Fractal, 7 Chaos, 8..15 — истинная лестница Dot..Origin.
 
-// Шанс успеха (%) для перехода rarity -> rarity+1. Из Chaos (индекс 7) крафта нет.
-// Все шансы в 2 раза ниже прежних (новая экономика: редкое дороже).
+// Шанс успеха (%) для перехода rarity -> rarity+1 — единый реестр:
+// server/rarity (rarity_registry.go), 15 переходов, включая Chaos→Dot 4%.
 // «Брутально редкий топ»: Point→Line 20%, Hexagon→Fractal 1%, Fractal→Chaos 1%.
-var craftChancePct = []float64{20.0, 12.5, 7.5, 4.0, 2.0, 1.0, 1.0}
+
+// maxCraftFrom — верхний исходный тир крафта. Пока петалей истинных редкостей
+// (Dot..Origin) в игре нет (появятся с волнами 2.0 / дроп-таблицами этапа 4),
+// крафт из Chaos (дал бы Dot) закрыт — как в родителе.
+const maxCraftFrom = 6
 
 // craftableRarity сообщает, можно ли крафтить пёталь этой редкости (есть ли следующая).
 func craftableRarity(rarity int) bool {
-	return rarity >= 0 && rarity < len(craftChancePct)
+	return rarity >= 0 && rarity <= maxCraftFrom && rarity < len(craftChancePct)
 }
 
 // craftSuccessChance возвращает шанс успеха (%) для редкости, или -1 если нельзя.

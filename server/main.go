@@ -637,7 +637,7 @@ func handleCraft(w http.ResponseWriter, r *http.Request) {
 		// Всемирное объявление: игрок скрафтил Fractal (6) или Chaos (7).
 		// Все результаты одного батча однородны (вид+редкость), так что берём
 		// первый из results, а количество = число успехов.
-		if nextRar := rarity + 1; nextRar >= len(rarityNames)-2 {
+		if nextRar := rarity + 1; nextRar >= rarityFractal {
 			rarWord := rarityNames[nextRar] // "Fractal" | "Chaos"
 			petalName := "petal"
 			if len(results) > 0 && results[0].Name != "" {

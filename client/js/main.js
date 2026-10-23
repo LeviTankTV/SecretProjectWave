@@ -384,8 +384,8 @@ function inventorySig() {
 }
 function inventoryDirty() { return inventorySig() !== lastInvSig; }
 
-// Цвет редкости для картинки петаля.
-const rarityColors = ['#ecf0f1', '#2ecc71', '#f1c40f', '#e74c3c', '#3498db', '#1abc9c', '#9b59b6', '#ff2d95'];
+// Цвет редкости для картинки петаля — единый реестр js/rarities.js
+// (автогенерация из server/rarity, 16 редкостей Point..Origin).
 
 // рисует в меню петали из инвентаря (картинка зависит от редкости).
 // Поддерживает перетаскивание (drag&drop) в хотбар и выброс за XP.
@@ -1060,9 +1060,7 @@ function petalSVG(kind, color) {
     }
 }
 
-function rarityName(r) {
-    return ['Point', 'Line', 'Triangle', 'Square', 'Polygon', 'Hexagon', 'Fractal', 'Chaos'][r] || '?';
-}
+// Имя редкости — из единого реестра js/rarities.js (16 редкостей).
 
 // HEX-цвет текста по индексу редкости (для подписи красочной подписи).
 function rarityHex(ri) {
@@ -1186,7 +1184,8 @@ let craftPileRarity = 0;     // редкость вложенных петале
 let craftPending = [];       // результаты удачного крафта, ждут «Забрать»
 let craftSpinning = false;   // идёт анимация крутки (заблокировано)
 
-const CRAFT_CHANCE = [20, 12.5, 7.5, 5, 2.5, 1, 1]; // шанс успеха % для Point..Fractal
+// Шанс успеха крафта — из единого реестра js/rarities.js (CRAFT_CHANCE_PCT,
+// синхронизирован с сервером; раньше локальная копия разошлась с ним).
 
 // Текущий стек катушки — ключ "kind|rarity".
 function pileKey(kind, rarity) { return (kind || '') + '|' + (rarity || 0); }
@@ -1301,7 +1300,7 @@ function renderCraftPanel() {
             chance.textContent = 'Cannot craft from Chaos';
             chance.style.color = '#e74c3c';
         } else if (craftPileCount >= 5) {
-            chance.textContent = `Success Chance = ${CRAFT_CHANCE[craftPileRarity]} %`;
+            chance.textContent = `Success Chance = ${CRAFT_CHANCE_PCT[craftPileRarity]} %`;
             chance.style.color = '#ffd54f';
         } else {
             chance.textContent = craftPileCount > 0 ? 'Add more (x5)' : '—';
@@ -3564,7 +3563,7 @@ function drawShowcaseDesign(g, idx, size, col) {
         g.drawCircle(0, 0, r * 0.11);
         g.endFill();
     } else if (idx === 2) {
-        // Star: пятиконечная звезда с двойной обводкой и бликом (зона Polygon).
+        // Star: пятиконечная звезда с двойной обводкой и бликом (зона Pentagon).
         g.beginFill(light, 0.2);
         g.drawCircle(0, 0, r * 1.4);
         g.endFill();
@@ -6074,10 +6073,8 @@ function escapeHtml(s) {
 }
 
 // ----- Тултип петали: название, редкость, способность, свойства, HP, DMG -----
-// Базовые статы видов (дублируют сервер): фиксированные значения = Base × RAR_MULT.
-// RAR_MULT = petalPower (server/mob.go): Point..Square ×1.5/тир, затем Pentagon 6.0,
-// Hexagon 12.0, Fractal 27.0, Chaos 81.0 (фолбэк, если сервер не прислал hp/dmg).
-const RAR_MULT = [1, 1.5, 2.25, 3.375, 6, 12, 27, 81];
+// RAR_MULT — из единого реестра js/rarities.js (автогенерация из server/rarity,
+// 16 редкостей; фолбэк, если сервер не прислал hp/dmg).
 // Константы кольца-ауры Saturn (дублируют server/mob.go). Только визуал —
 // урон считается на сервере.
 const SAT_RING_BASE = 100;
@@ -6337,7 +6334,7 @@ document.getElementById('admPullBtn').addEventListener('click', () => {
     if (n) { sendAdmin({ type: 'adminPull', name: n }); document.getElementById('admPullInput').value = ''; }
 });
 
-// Кнопки «Телепорт в центр зоны» (Chaos/Fractal/Polygon/Line/Point).
+// Кнопки «Телепорт в центр зоны» (Chaos/Fractal/Pentagon/Line/Point).
 // Кнопки «В центр Safe Zone» (.adm-safe-btn) живут своей веткой и отправляют
 // adminZoneSafe, чтобы не срабатывал двойной телепорт в центр зоны.
 document.querySelectorAll('.adm-zone-btn:not(.adm-safe-btn)').forEach(btn => {

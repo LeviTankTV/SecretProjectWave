@@ -176,8 +176,8 @@ func TestGoldenHPMult(t *testing.T) {
 		t.Fatalf("gold HP=%v, want %v (×%v)", gold.HP, norm.HP*goldHPMult, goldHPMult)
 	}
 	// Золотой Fractal — ×50.
-	nf := makeAdminMob("square", len(rarityNames)-2, 0, 0, 0, 3, "nothing")
-	gf := makeAdminMob("square", len(rarityNames)-2, 0, 0, 0, 4, "gold")
+	nf := makeAdminMob("square", rarityFractal, 0, 0, 0, 3, "nothing")
+	gf := makeAdminMob("square", rarityFractal, 0, 0, 0, 4, "gold")
 	if gf.HP != nf.HP*goldBossHPMult {
 		t.Fatalf("gold Fractal HP=%v, want %v", gf.HP, nf.HP*goldBossHPMult)
 	}

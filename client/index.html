@@ -1694,7 +1694,7 @@
                 <option value="1">Line</option>
                 <option value="2">Triangle</option>
                 <option value="3">Square</option>
-                <option value="4">Polygon</option>
+                <option value="4">Pentagon</option>
                 <option value="5">Hexagon</option>
                 <option value="6">Fractal</option>
                 <option value="7">Chaos</option>
@@ -1754,7 +1754,7 @@
                 <option value="1">Line</option>
                 <option value="2">Triangle</option>
                 <option value="3">Square</option>
-                <option value="4">Polygon</option>
+                <option value="4">Pentagon</option>
                 <option value="5">Hexagon</option>
                 <option value="6">Fractal</option>
                 <option value="7">Chaos</option>
@@ -1866,7 +1866,9 @@
 
     <!-- PixiJS + клиент -->
     <script src="https://cdn.jsdelivr.net/npm/pixi.js@7.x/dist/pixi.min.js"></script>
-    <script src="js/main.js?v=188"></script>
+    <!-- Единый реестр редкостей: автогенерация из server/rarity (go generate) -->
+    <script src="js/rarities.js?v=1"></script>
+    <script src="js/main.js?v=189"></script>
     <script src="js/lobby.js?v=1"></script>
 </body>
 </html>

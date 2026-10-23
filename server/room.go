@@ -207,7 +207,7 @@ func (r *Room) mobsCount(zone int) int {
 // chaosActive — есть ли живой Chaos-моб где угодно (по всей игре максимум 1).
 func (r *Room) chaosActive() bool {
 	for i := range r.mobs {
-		if r.mobs[i].HP > 0 && r.mobs[i].Rarity == len(rarityNames)-1 {
+		if r.mobs[i].HP > 0 && r.mobs[i].Rarity == rarityChaos {
 			return true
 		}
 	}
@@ -218,7 +218,7 @@ func (r *Room) chaosActive() bool {
 func (r *Room) fractalInZone(zone int) bool {
 	for i := range r.mobs {
 		m := &r.mobs[i]
-		if m.HP > 0 && m.Zone == zone && m.Rarity == len(rarityNames)-2 {
+		if m.HP > 0 && m.Zone == zone && m.Rarity == rarityFractal {
 			return true
 		}
 	}
@@ -237,9 +237,9 @@ func (r *Room) spawnMob(zone int) {
 		// на случай будущих путей спавна: 5 → Polygon.
 		scaleMobForRarity(&m, 4)
 	}
-	if m.Rarity == len(rarityNames)-1 && r.chaosActive() {
+	if m.Rarity == rarityChaos && r.chaosActive() {
 		// Chaos уже существует — второй не спавнится, понижаем.
-		scaleMobForRarity(&m, len(rarityNames)-3)
+		scaleMobForRarity(&m, rarityChaos - 2)
 	}
 	r.mobs = append(r.mobs, m)
 	if txt := superSpawnText(zone, m); txt != "" {
@@ -281,7 +281,7 @@ func (r *Room) spawnHexagonBoss(zone int) {
 // ЕДИНСТВЕННЫЙ путь появления боссов: таймер зоны (5-30 мин ПОСЛЕ смерти
 // предыдущего, максимум 1 в зоне). Обычные спавны Fractal-редкость не рождают.
 func (r *Room) spawnFractalBoss(zone int) {
-	r.spawnSuperBoss(zone, len(rarityNames)-2)
+	r.spawnSuperBoss(zone, rarityFractal)
 }
 
 // spawnSuperBoss — общий спавн босса Fractal/Chaos заданной редкости
@@ -309,14 +309,14 @@ func (r *Room) spawnSuperBoss(zone int, rar int) {
 // или Chaos (7) моб. Оба возможны в верхней полосе ЛЮБОЙ зоны — уведомляем всегда.
 func superSpawnText(zone int, m Mob) string {
 	// Shiny/Golden моб: к имени добавляется "Golden" (и у обычных, и у боссов).
-	if m.Rarity >= len(rarityNames)-1 {
+	if m.Rarity >= rarityChaos {
 		name := mobTypes[m.Type].Name
 		if m.Golden {
 			name = "Golden " + name
 		}
 		return "A Chaos " + name + " has spawned!"
 	}
-	if m.Rarity == len(rarityNames)-2 {
+	if m.Rarity == rarityFractal {
 		name := mobTypes[m.Type].Name
 		if m.Golden {
 			name = "Golden " + name
@@ -591,7 +591,7 @@ func (r *Room) tick() {
 		found := false
 		for i := range r.mobs {
 			m := &r.mobs[i]
-			if m.HP <= 0 || m.Zone != p.zone || m.Rarity < len(rarityNames)-2 {
+			if m.HP <= 0 || m.Zone != p.zone || m.Rarity < rarityFractal {
 				continue
 			}
 			dx := m.X - p.State.X
@@ -1334,7 +1334,7 @@ func (r *Room) pickupPetals(dt float64) {
 				// Всемирный анонс подбора Fractal/Chaos-дропа (как анонсы крафта
 				// высокого тира: kind "craftX" красиво подсвечивается на клиенте).
 				// Только настоящий мобный дроп (OwnerID != ""); редкость Fractal и выше.
-				if g.Rarity >= len(rarityNames)-2 && g.OwnerID != "" {
+				if g.Rarity >= rarityFractal && g.OwnerID != "" {
 					petalName := petalKinds[g.Kind].Name
 					if petalName == "" {
 						petalName = g.Kind
@@ -2177,7 +2177,7 @@ func (r *Room) awardMobKill(m *Mob) {
 	}
 
 	// Уведомление о смерти Chaos/Fractal-моба с именами топ-4 игроков, нанёсших урон.
-	if m.Rarity >= len(rarityNames)-2 {
+	if m.Rarity >= rarityFractal {
 		var names []string
 		for _, d := range list {
 			if d.d <= 0 {
@@ -2192,7 +2192,7 @@ func (r *Room) awardMobKill(m *Mob) {
 		}
 		if len(names) > 0 {
 			label := "Fractal"
-			if m.Rarity == len(rarityNames)-1 {
+			if m.Rarity == rarityChaos {
 				label = "Chaos"
 			}
 			// Golden-моб: «A Golden Chaos Arrow has been defeated by ...».
@@ -2213,11 +2213,11 @@ func (r *Room) awardMobKill(m *Mob) {
 		} else {
 			extra := 0
 			switch m.Rarity {
-			case len(rarityNames) - 2:
+			case rarityFractal:
 				if rand.Float64() < 0.35 {
 					extra = 1
 				}
-			case len(rarityNames) - 1:
+			case rarityChaos:
 				if rand.Float64() < 0.5 {
 					extra = 1
 				}
@@ -2247,11 +2247,11 @@ func (r *Room) awardMobKill(m *Mob) {
 			// на +1 петаль, Chaos — 50% на +1 и ещё 20% на +2.
 			extra := 0
 			switch m.Rarity {
-			case len(rarityNames) - 2:
+			case rarityFractal:
 				if rand.Float64() < 0.35 {
 					extra = 1
 				}
-			case len(rarityNames) - 1:
+			case rarityChaos:
 				if rand.Float64() < 0.5 {
 					extra = 1
 				}
@@ -3323,7 +3323,7 @@ func (r *Room) LiveCraft(id, kind string, rarity, invest int) {
 	// ГОРУТИНА через AfterFunc: она сама возьмёт r.mu (BroadcastSystem).
 	// ВАЖНО: нельзя звать BroadcastSystem прямо здесь — LiveCraft уже держит
 	// r.mu, повторный захват заблокировал бы весь сервер навсегда.
-	if successes > 0 && rarity+1 >= len(rarityNames)-2 {
+	if successes > 0 && rarity+1 >= rarityFractal {
 		rarWord := rarityNames[rarity+1]
 		petalName := "shape"
 		if len(results) > 0 && results[0].Name != "" {
