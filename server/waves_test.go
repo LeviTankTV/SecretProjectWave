@@ -5,15 +5,19 @@ package main
 import "testing"
 
 func TestWaveSpecialFor(t *testing.T) {
-	// 2.0: каждая 10-я — босс лестницы, каждая 25-я (не кратная 10) — элита.
+	// 2.0: каждая 10-я — босс лестницы, каждая 25-я (не кратная 10) — элита,
+	// ротация 5-х волн — по счётчику (элита не съедает слот tanks): 5 swarm,
+	// 15 tanks, 35 hunters, 45 swarm...
 	cases := map[int]string{
 		1: "", 3: "", 4: "",
 		5:  "swarm",
 		10: "boss",
-		15: "hunters",
+		15: "tanks",
 		20: "boss",
 		25: "elite",
 		30: "boss",
+		35: "hunters",
+		45: "swarm",
 		75: "elite",
 	}
 	for n, want := range cases {

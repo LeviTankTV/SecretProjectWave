@@ -146,17 +146,27 @@ func waveSpecialFor(n int) string {
 	if n%25 == 0 {
 		return "elite"
 	}
-	if n%5 == 0 {
-		switch (n / 5) % 3 {
-		case 1:
-			return "swarm"
-		case 2:
-			return "tanks"
-		default:
-			return "hunters"
-		}
+	if n%5 != 0 {
+		return ""
 	}
-	return ""
+	// Ротация swarm/tanks/hunters по СЧЁТЧИКУ 5-х волн, минуя съеденные
+	// слоты (босс каждые 10-е, элита каждые 25-е): без счётчика элита на 25-й
+	// навсегда вытесняла tanks из ротации (остатки по модулю совпадают).
+	seq := 0
+	for k := 5; k <= n; k += 5 {
+		if k%10 == 0 || k%25 == 0 {
+			continue
+		}
+		seq++
+	}
+	switch (seq - 1) % 3 {
+	case 0:
+		return "swarm"
+	case 1:
+		return "tanks"
+	default:
+		return "hunters"
+	}
 }
 
 // waveRarityFor — редкость моба для волны n (2.0): [floor..ceil], веса
@@ -408,6 +418,10 @@ func (r *Room) startWave(n int) {
 			r.waveSpawnInterval = 0.4
 		}
 	}
+	// Хвост ПРОШЛОЙ волны (после hold-таймера) расчищается ДО спавна босса:
+	// раньше очистка стояла в конце функции и стирала босс-моба, только что
+	// заспавненного в switch выше (баг: «боссовые» волны шли без босса).
+	r.clearWaveMobs()
 	r.waveRarFloor, r.waveRarCeil = floor, ceil
 	// Арена растёт с волной (2.0): +25 радиуса за каждые 5 волн, кап 2200.
 	r.waveArenaR = arenaRadiusFor(n)
@@ -417,8 +431,6 @@ func (r *Room) startWave(n int) {
 	r.waveTotal = r.waveToSpawn
 	r.waveSpawned = 0
 	r.waveHoldT = waveHoldDuration
-	// Хвост прошлой волны (после hold-таймера) расчищается.
-	r.clearWaveMobs()
 	// Мёртвые игроки возвращаются в строй ровно на старте следующей волны.
 	for _, p := range r.players {
 		if p.Dead {
