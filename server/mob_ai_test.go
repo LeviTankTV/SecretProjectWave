@@ -88,25 +88,25 @@ func TestGoldenSpawnerLegacy(t *testing.T) {
 
 	// Hive-summon: призыв зоны становится Golden.
 	gh := &Mob{ID: "gh1", Type: "hive", Rarity: 3, X: 200, Y: 200, Zone: 5,
-		HP: 500, MaxHP: 500, Golden: true, Radius: 30}
+		HP: 500, MaxHP: 500, Variant: "gold", Radius: 30}
 	before := len(r.mobs)
 	hiveSummonMob(r, gh)
 	if len(r.mobs) != before+1 {
 		t.Fatalf("hive summon didn't add a mob")
 	}
-	if !r.mobs[before].Golden {
+	if r.mobs[before].Variant != "gold" {
 		t.Fatalf("hive summon should be Golden, got %+v", r.mobs[before])
 	}
 
 	// Actal minis: распад на ЗОЛОТЫХ мини-копий.
 	r.mobs = r.mobs[:before]
 	ga := &Mob{ID: "ga1", Type: "actal", Rarity: 6, X: 300, Y: 300, Zone: 0,
-		HP: 500, MaxHP: 500, Golden: true, Damage: map[string]float64{"p1": 50}, KillerID: "p1"}
+		HP: 500, MaxHP: 500, Variant: "gold", Damage: map[string]float64{"p1": 50}, KillerID: "p1"}
 	before2 := len(r.mobs)
 	r.awardMobKill(ga)
 	goldMinis := 0
 	for _, mob := range r.mobs[before2:] {
-		if mob.Type == "actal" && mob.Golden {
+		if mob.Type == "actal" && mob.Variant == "gold" {
 			goldMinis++
 		}
 	}

@@ -418,7 +418,7 @@ func TestGoldenChaosDefeatLabel(t *testing.T) {
 		inventory: []InvStack{},
 	}
 	m := &Mob{
-		ID: "mm", Type: "arrow", Rarity: rarityChaos, Golden: true,
+		ID: "mm", Type: "arrow", Rarity: rarityChaos, Variant: "gold",
 		X: 100, Y: 100, Zone: 8, MaxHP: 1000,
 		Damage: map[string]float64{"killer": 99999}, KillerID: "killer",
 	}

@@ -276,8 +276,9 @@ type Mob struct {
 
 	// Hive: следующий порог HP для спавна моба (15% интервалы).
 	hiveNextSpawn float64
-	// Shiny/Golden: золотой моб (спавн 0.1% или админ).
-	Golden bool
+	// Подвид моба (порт родителя): "" / gold / ring / star / crescent.
+	// Спавн по весам variantSpawnWeights (~0.7% суммарно) или админ.
+	Variant string
 	// Hive: игнорирует столкновения с другими мобами.
 	noMobCollide bool
 	// Hive: при смерти преследующий Hexagon заспавнен.
@@ -359,7 +360,7 @@ type MobState struct {
 	Slow       bool             `json:"slow,omitempty"`     // моб замедлен (Rhombus — для синей подсветки)
 	Showcase   bool             `json:"showcase,omitempty"` // витринный мокап TestRoom
 	Label      string           `json:"label,omitempty"`    // крупный номер над мокапом ("1".."20")
-	Golden     bool             `json:"golden,omitempty"`   // Shiny/Golden моб (клиент: золотая обводка бара)
+	Variant    string           `json:"variant,omitempty"`  // подвид моба: gold/ring/star/crescent (клиент: обводка бара)
 }
 
 // ---- Петаль-предмет (лежит на земле) ----
@@ -727,14 +728,12 @@ const (
 	arrowBrakeDur   = 1.6
 	arrowRestDur    = 1.2
 	arrowSprintMult = 1.25 // множитель скорости в спринте (разгон/крейсер)
-	// +- Moб Shiny/Golden (спавн с шансом 0.1%): сам моб золотого цвета,
-	// к имени добавляется "Golden", HP ×20 (обычные) или ×50 (Fractal/Chaos),
-	// дроп ×10 (топ-дамагерам). В админ-панели выбирается вручную (nothing/gold).
-	goldSpawnChance = 0.001
-	goldHPMult      = 20.0
-	goldBossHPMult  = 50.0 // ×50 HP от базового для Fractal/Chaos золотых
-	goldLootRolls   = 10   // ровно в 10 раз больше попыток дропа на топ-дамагера
-	goldColor       = 0xffd700
+	// Подвиды мобов (mob_variant.go) заменили единственный Golden. Оставшиеся
+	// константы — параметры ЗОЛОТОГО подвида (самый редкий и жирный):
+	goldHPMult     = 20.0
+	goldBossHPMult = 50.0 // ×50 HP от базового для Fractal/Chaos золотых
+	goldLootRolls  = 10   // ровно в 10 раз больше попыток дропа на топ-дамагера
+	goldColor      = 0xffd700
 
 	// spikeBodyBase (петаль spike, «шиповое тело»): контактный урон тела игрока
 	// за ОДИН надетый spike r0 (× petalPower; СКЛАДЫВАЕТСЯ от всех живых
@@ -1080,14 +1079,16 @@ func scaleMobForRarity(m *Mob, rar int) {
 		sz *= hexMobSizeMult
 	}
 	hp, dmg := mobStatsForRarity(m.Type, rar)
-	// Shiny/Golden: HP ×20 (обычные) или ×50 для золотых Fractal/Chaos.
-	// Golden-«рассадники» (Hive / Actal) наследуют Golden своим призывам.
-	if m.Golden {
-		if rar >= rarityFractal {
-			hp *= goldBossHPMult
-		} else {
-			hp *= goldHPMult
+	// Подвид (порт родителя): множители HP/урона/размера; золотой Fractal/Chaos
+	// толще обычного золота (×50). «Рассадники» (Hive/Actal) наследуют подвид.
+	if m.Variant != "" {
+		_, _, _, hpM, dmgM, sizeM := VariantDef(m.Variant)
+		if m.Variant == "gold" && rar >= rarityFractal {
+			hpM = goldBossHPMult
 		}
+		hp *= hpM
+		dmg *= dmgM
+		sz *= sizeM
 	}
 	m.HP = hp
 	m.MaxHP = hp
@@ -1238,9 +1239,9 @@ func makeMob(zone int, id int) Mob {
 		dirX:      rand.Float64()*2 - 1,
 		dirY:      rand.Float64()*2 - 1,
 	}
-	// Shiny/Golden: шанс 0.1% при появлении (работает на ЛЮБУЮ редкость,
-	// включая Fractal/Chaos боссов).
-	m.Golden = rand.Float64() < goldSpawnChance
+	// Подвид по весам (~0.7% суммарно; gold — тот самый «0.1% Golden»),
+	// работает на ЛЮБУЮ редкость, включая Fractal/Chaos боссов.
+	m.Variant = PickRandomVariant()
 	scaleMobForRarity(&m, rar)
 
 	// Позиция: только в Mob Zone (нижняя граница — верх стены), с учётом радиуса.
@@ -1410,6 +1411,16 @@ func makeDropPetal(m *Mob, ownerID string, id int) GroundPetal {
 	}
 	kind := petalKinds[kname]
 	rar := pickDropRarity(m.Rarity)
+	// Подвид моба бустит редкость дропа на rarityBoost (gold/star +2, ring/
+	// crescent +1). Клампим по размеру таблицы сил (петали истинных редкостей
+	// дропом не падают — потолок Chaos).
+	if m.Variant != "" {
+		_, _, boost, _, _, _ := VariantDef(m.Variant)
+		rar += boost
+		if rar > rarityChaos {
+			rar = rarityChaos
+		}
+	}
 	mult := petalPower[rar]
 	size := petalSizeBase * math.Pow(1.2, float64(rar))
 	color := groundPetalColor(rar)

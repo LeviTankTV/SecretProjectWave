@@ -169,8 +169,8 @@ func TestBeamOrbHomesToNearestPlayer(t *testing.T) {
 func TestGoldenHPMult(t *testing.T) {
 	norm := makeAdminMob("square", 0, 0, 0, 0, 1, "nothing")
 	gold := makeAdminMob("square", 0, 0, 0, 0, 2, "gold")
-	if !gold.Golden || norm.Golden {
-		t.Fatalf("gold флаг неверный: norm=%v gold=%v", norm.Golden, gold.Golden)
+	if gold.Variant != "gold" || norm.Variant != "" {
+		t.Fatalf("gold флаг неверный: norm=%v gold=%v", norm.Variant, gold.Variant)
 	}
 	if gold.HP != norm.HP*goldHPMult {
 		t.Fatalf("gold HP=%v, want %v (×%v)", gold.HP, norm.HP*goldHPMult, goldHPMult)

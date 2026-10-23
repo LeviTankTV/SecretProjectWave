@@ -308,20 +308,12 @@ func (r *Room) spawnSuperBoss(zone int, rar int) {
 // superSpawnText возвращает текст уведомления, если заспавнился Fractal (6)
 // или Chaos (7) моб. Оба возможны в верхней полосе ЛЮБОЙ зоны — уведомляем всегда.
 func superSpawnText(zone int, m Mob) string {
-	// Shiny/Golden моб: к имени добавляется "Golden" (и у обычных, и у боссов).
+	// Подвид моба: к имени добавляется префикс (и у обычных, и у боссов).
 	if m.Rarity >= rarityChaos {
-		name := mobTypes[m.Type].Name
-		if m.Golden {
-			name = "Golden " + name
-		}
-		return "A Chaos " + name + " has spawned!"
+		return "A Chaos " + variantPrefix(m.Variant) + mobTypes[m.Type].Name + " has spawned!"
 	}
 	if m.Rarity == rarityFractal {
-		name := mobTypes[m.Type].Name
-		if m.Golden {
-			name = "Golden " + name
-		}
-		return "A Fractal " + name + " has spawned!"
+		return "A Fractal " + variantPrefix(m.Variant) + mobTypes[m.Type].Name + " has spawned!"
 	}
 	return ""
 }
@@ -754,12 +746,12 @@ func (r *Room) buildState(viewerID string) []byte {
 		if !visR(m.X, m.Y, m.Radius) {
 			continue
 		}
-		// Golden mob: имя с префиксом "Golden", цвет — золото вместо обычного.
-		mobName := mobTypes[m.Type].Name
+		// Подвид: имя с префиксом ("Golden"/"Ring"/...), цвет подвида вместо
+		// обычного (у gold — золото).
+		mobName := variantPrefix(m.Variant) + mobTypes[m.Type].Name
 		mobColor := mobTypes[m.Type].Color
-		if m.Golden {
-			mobName = "Golden " + mobName
-			mobColor = goldColor
+		if vc := variantColor(m.Variant); vc != 0 {
+			mobColor = vc
 		}
 		msg.Mobs = append(msg.Mobs, MobState{
 			ID: m.ID, Type: m.Type, Shape: mobTypes[m.Type].Shape,
@@ -774,7 +766,7 @@ func (r *Room) buildState(viewerID string) []byte {
 			Slow:     m.SlowT > 0,
 			Showcase: m.Showcase,
 			Label:    m.Label,
-			Golden:   m.Golden,
+			Variant:  m.Variant,
 		})
 		if len(m.petals) > 0 {
 			sts := make([]BossPetalState, 0, len(m.petals))
@@ -2093,8 +2085,8 @@ func hiveSummonMob(r *Room, h *Mob) {
 	}
 	// Полное масштабирование редкости (включая боссовые множители HP):
 	// саммон Fractal-редкости обязан иметь те же HP, что и обычный Fractal.
-	// Golden-Hive призывает ЗОЛОТЫХ мобов (Golden Hexagon и т.д.).
-	summoned.Golden = h.Golden
+	// Hive с подвидом призывает мобов того же подвида (Golden Hexagon и т.д.).
+	summoned.Variant = h.Variant
 	scaleMobForRarity(&summoned, summonRar)
 	summoned.Speed = mt.BaseSpeed * (0.8 + rand.Float64()*0.5)
 	clampMobInZone(&summoned)
@@ -2169,10 +2161,11 @@ func (r *Room) awardMobKill(m *Mob) {
 		lootThreshold = 0 // получателям fallback порог не применяется
 	}
 
-	// Shiny/Golden: дроп ровно ×10 (по goldLootRolls попыток на каждого
-	// топ-дамагера вместо одной).
+	// Золотой подвид: дроп ровно ×10 (по goldLootRolls попыток на каждого
+	// топ-дамагера вместо одной); прочие подвиды бустят не число, а редкость
+	// (см. makeDropPetal).
 	goldRolls := 1
-	if m.Golden {
+	if m.Variant == "gold" {
 		goldRolls = goldLootRolls
 	}
 
@@ -2195,10 +2188,8 @@ func (r *Room) awardMobKill(m *Mob) {
 			if m.Rarity == rarityChaos {
 				label = "Chaos"
 			}
-			// Golden-моб: «A Golden Chaos Arrow has been defeated by ...».
-			if m.Golden {
-				label = "Golden " + label
-			}
+			// Подвид: «A Golden Chaos Arrow has been defeated by ...».
+			label = variantPrefix(m.Variant) + label
 			r.broadcastSystemLocked("super", "A "+label+" "+mobTypes[m.Type].Name+
 				" has been defeated by "+strings.Join(names, ", ")+"!")
 		}
@@ -2269,12 +2260,12 @@ func (r *Room) awardMobKill(m *Mob) {
 	}
 
 	// Всем клиентам — сигнал «моб умер и затухает» (id, позиция, вид, цвет).
-	// Golden-моб и мёртвым остаётся золотым: цвет в сообщении такой же, как у
-	// живого в buildState (иначе труп затухал бы в натуральном цвете моба).
+	// Моб с подвидом и мёртвым остаётся окрашенным: цвет в сообщении такой же,
+	// как у живого в buildState (иначе труп затухал бы в натуральном цвете).
 	mt := mobTypes[m.Type]
 	diedColor := mt.Color
-	if m.Golden {
-		diedColor = goldColor
+	if vc := variantColor(m.Variant); vc != 0 {
+		diedColor = vc
 	}
 	died := map[string]interface{}{
 		"type": "mobDied", "id": m.ID,
@@ -2309,9 +2300,9 @@ func (r *Room) awardMobKill(m *Mob) {
 				moveTimer: rand.Float64() * 3,
 				dirX:      rand.Float64()*2 - 1,
 				dirY:      rand.Float64()*2 - 1,
-				noClone:   true,
-				// Golden-Actal распадается на ЗОЛОТЫХ мини-копий.
-				Golden: m.Golden,
+				noClone: true,
+				// Actal с подвидом распадается на мини-копий того же подвида.
+				Variant: m.Variant,
 			}
 			// Полное масштабирование редкости (включая боссовые ×10 Fractal
 			// и ×32 Chaos), затем мини-версия — 30% от полных статов.
@@ -2343,8 +2334,8 @@ func (r *Room) awardMobKill(m *Mob) {
 			moveTimer: 9999,
 			dirX:      0,
 			dirY:      0,
-			// Golden-Hive выпускает ЗОЛОТОГО Hexagon той же редкости.
-			Golden: m.Golden,
+			// Hive с подвидом выпускает Hexagon того же подвида и редкости.
+			Variant: m.Variant,
 		}
 		// Полное масштабирование редкости (включая боссовые множители HP).
 		scaleMobForRarity(&hm, m.Rarity)

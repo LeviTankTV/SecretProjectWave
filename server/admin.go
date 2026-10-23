@@ -149,9 +149,10 @@ func makeAdminMob(kind string, rar int, zone int, x, y float64, id int, mtype st
 		dirX:      1,
 		dirY:      0,
 	}
-	// «gold» — принудительно золотой (Shiny) моб; «nothing» и прочее — обычный.
-	if mtype == "gold" {
-		m.Golden = true
+	// «gold»/«ring»/«star»/«crescent» — принудительный подвид моба;
+	// «nothing» и прочее — обычный.
+	if mtype != "" && mtype != "nothing" {
+		m.Variant = mtype
 	}
 	// Спецспособности: comet/arrow/beam инициализация как у обычных мобов.
 	initSpecMobPhase(&m, kind)

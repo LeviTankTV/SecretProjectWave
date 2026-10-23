@@ -3296,7 +3296,7 @@ function renderMobs(mobs) {
         if (a.showLabel) a.showLabel.y = -(m.size + 28);
         a.shape = m.shape;
         a.color = m.color;
-        a.golden = !!m.golden;
+        a.variant = m.variant || '';
         a.type = m.type;
         a.showcase = !!m.showcase;
         a.label = m.label || '';
@@ -4754,11 +4754,14 @@ function redrawMobHP(a, m) {
     a.barShine.endFill();
 
     // Окантовка всего бара — в цвет редкости моба (у союзника — зелёная).
-    // Golden моб: дополнительная золотая обводка бара.
-    const edgeCol = a.golden ? 0xffd700 : (aColor ? 0x3ddc84 : rarityNum(a.rarityI));
+    // Подвид моба (gold/ring/star/crescent): обводка бара в цвет подвида,
+    // у золотого — потолще.
+    const VAR_COLORS = { gold: 0xffd700, ring: 0xf1c40f, star: 0xfffacd, crescent: 0xb0c4de };
+    const isGold = a.variant === 'gold';
+    const edgeCol = a.variant ? (VAR_COLORS[a.variant] || 0xffd700) : (aColor ? 0x3ddc84 : rarityNum(a.rarityI));
     a.barEdge.clear();
-    a.barEdge.lineStyle(a.golden ? 3 : 1, edgeCol, 0.9);
-    a.barEdge.drawRoundedRect(a.golden ? -2 : 0.5, a.golden ? -2 : 0.5, bw + (a.golden ? 4 : 0), bh + (a.golden ? 4 : 0), (bh + (a.golden ? 4 : 0)) / 2);
+    a.barEdge.lineStyle(isGold ? 3 : 1, edgeCol, 0.9);
+    a.barEdge.drawRoundedRect(isGold ? -2 : 0.5, isGold ? -2 : 0.5, bw + (isGold ? 4 : 0), bh + (isGold ? 4 : 0), (bh + (isGold ? 4 : 0)) / 2);
     a.barEdge.lineStyle(0);
 }
 
@@ -5661,12 +5664,16 @@ function drawPetalShape(g, pt) {
             break;
         }
         default: {
-            // Фолбэк — лепесток.
-            g.lineStyle(1.5, 0xffffff, 0.8);
+            // Новые виды (volt/jag/anvil/lance/saw/flare/piercer/wingblade/
+            // rivet/tail/trap/жетоны...) до появления авторских дизайнов
+            // (этап 7): фирменный круг-заглушка с бликом.
+            g.lineStyle(1.5, petalShade(hex, 0.6), 0.95);
             g.beginFill(hex);
-            g.moveTo(0, -s * 1.1);
-            g.quadraticCurveTo(s, 0, 0, s * 1.1);
-            g.quadraticCurveTo(-s, 0, 0, -s * 1.1);
+            g.drawCircle(0, 0, s);
+            g.endFill();
+            g.lineStyle(0);
+            g.beginFill(0xffffff, 0.35);
+            g.drawEllipse(-s * 0.25, -s * 0.35, s * 0.55, s * 0.3);
             g.endFill();
             break;
         }
