@@ -50,8 +50,10 @@ func TestAbsorbGrantsXP(t *testing.T) {
 	sp.addCountToStack("rock", 1, 4)
 	sp.addCountToStack("rock", 1, 2)
 
+	// Цена — petalXPFor (порт родителя): номинал вида, округление до целого,
+	// потолок absorbMaxKills и tierGap (уровень 0 против редкости 1 — без штрафа).
 	got := sp.absorb([]absorbItem{{Kind: "rock", Rarity: 1, Count: 10}})
-	want := petalStackXP(petalDefTest("rock", 1)) * 6
+	want := petalXPFor(petalDefTest("rock", 1), 0) * 6
 	if got != want {
 		t.Errorf("absorb got %v, want %v (должны списаться только 6 реальных)", got, want)
 	}

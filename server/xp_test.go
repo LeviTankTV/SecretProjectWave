@@ -17,10 +17,11 @@ func TestPetalCapForLevel(t *testing.T) {
 }
 
 func TestAwardXPLeveling(t *testing.T) {
+	// Кривая родителя (порт): с 0 на 1 нужно 45×1.11^0 = 45 XP.
 	p := &Player{}
 	p.State.Level = 0
 	p.State.XPMax = xpForLevel(0)
-	if !p.awardXP(30) {
+	if !p.awardXP(45) {
 		t.Errorf("expected levelup")
 	}
 	if p.State.Level != 1 {
@@ -38,13 +39,23 @@ func TestAwardXPLeveling(t *testing.T) {
 }
 
 func TestMobXP(t *testing.T) {
+	// killXPFor (порт родителя): детерминированный, растёт с редкостью,
+	// анти-фарм tierGap режет редкости ниже тира игрока.
 	m := &Mob{Type: "dot", Rarity: 0}
-	if mobXP(m) <= 0 {
-		t.Errorf("mobXP should be > 0, got %v", mobXP(m))
+	if killXPFor(m, 0) <= 0 {
+		t.Errorf("killXPFor should be > 0, got %v", killXPFor(m, 0))
 	}
 	// Rare mob should give more than common.
 	rare := &Mob{Type: "dot", Rarity: 2}
-	if mobXP(rare) < mobXP(m) {
+	if killXPFor(rare, 0) < killXPFor(m, 0) {
 		t.Errorf("rare mob XP should be > common mob XP")
+	}
+	// Анти-фарм: игрок 40-го уровня (тир 5) с Point-моба получает меньше.
+	if killXPFor(m, 40) >= killXPFor(m, 0) {
+		t.Errorf("tierGap should reduce low-rarity XP for high-level player")
+	}
+	// Детерминизм: два вызова — одинаковое число.
+	if killXPFor(rare, 10) != killXPFor(rare, 10) {
+		t.Errorf("killXPFor must be deterministic")
 	}
 }

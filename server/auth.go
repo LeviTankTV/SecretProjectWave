@@ -37,6 +37,12 @@ type User struct {
 	Banned         bool   `bson:"banned"`                    // забанен ли аккаунт (админ-бан)
 	CheckpointZone int    `bson:"checkpoint_zone,omitempty"` // зона чекпоинта (спавнпоинта)
 	BestWave       int    `bson:"best_wave,omitempty"`       // рекорд: лучшая достигнутая волна
+
+	// Миграция прогрессии (порт родителя): источник истины — накопленный опыт
+	// XPTotal, (Level, XP) — производные кривой xpForLevel. prog_ver < 2 —
+	// старая линейная кривая 30+12×L, конвертируется при первой загрузке.
+	XPTotal float64 `bson:"xp_total,omitempty"`
+	ProgVer int     `bson:"prog_ver,omitempty"`
 }
 
 var usersCollection *mongo.Collection
@@ -258,6 +264,22 @@ func loadProfile(nick string) (level int, xp float64, inv []InvStack, hotbars [2
 	if u.ActiveBar < 0 || u.ActiveBar > 1 {
 		u.ActiveBar = 0
 	}
+	// Миграция прогрессии v2 (порт родителя): старая пара (level, xp) с линейной
+	// кривой пересчитывается в накопленный XPTotal; уровень сохраняется по
+	// построению (totalXPForLevel(level)+xp -> тот же level на новой кривой).
+	// Результат сразу персистится, чтобы повторная загрузка не мигрировала дважды.
+	if u.ProgVer < 2 {
+		if u.XPTotal <= 0 {
+			u.XPTotal = totalXPForLevel(u.Level) + u.XP
+		}
+		u.ProgVer = 2
+		mctx, mcancel := context.WithTimeout(context.Background(), 2*time.Second)
+		usersCollection.UpdateOne(mctx, bson.M{"nick": nick}, bson.M{
+			"$set": bson.M{"xp_total": u.XPTotal, "prog_ver": u.ProgVer},
+		})
+		mcancel()
+	}
+	u.Level, u.XP = levelForTotalXP(u.XPTotal)
 	return u.Level, u.XP, inv, hotbars, u.ActiveBar
 }
 
@@ -281,6 +303,8 @@ func saveProfile(nick string, level int, xp float64, inv []InvStack, hotbars [2]
 			"inventory_json": string(invJSON),
 			"hotbars_json":   string(hotJSON),
 			"active_bar":     activeBar,
+			"xp_total":       totalXPForLevel(level) + xp,
+			"prog_ver":       2,
 		},
 	})
 }

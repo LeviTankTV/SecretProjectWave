@@ -545,18 +545,13 @@ func handleMenuDrop(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Начисляем XP (как абсорб) и пересчитываем уровень.
+	// Начисляем XP (как абсорб, цена с потолком — порт родителя) и пересчитываем
+	// уровень через общую кривую (кап 60, applyXPGain).
 	lvl, xp, _, _, _ := loadProfile(sp.nick)
 	if hasDef {
-		xp += petalStackXP(dropped)
-		for {
-			need := xpForLevel(lvl)
-			if xp >= need {
-				xp -= need
-				lvl++
-			} else {
-				break
-			}
+		gain := petalXPCapped(dropped)
+		if gain > 0 {
+			lvl, xp = applyXPGain(lvl, xp, gain)
 		}
 	}
 	saveProfile(sp.nick, lvl, xp, sp.inv, sp.hotbars, sp.activeBar)

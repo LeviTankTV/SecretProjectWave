@@ -2111,9 +2111,10 @@ func (r *Room) awardMobKill(m *Mob) {
 	}
 	m.DeadAwarded = true
 
-	// Опыт убийце (как было).
+	// Опыт убийце (порт родителя): детерминированный killXPFor с анти-фармом
+	// tierGap (редкости ниже тира игрока дают меньше).
 	if pk, ok := r.players[m.KillerID]; ok {
-		if pk.awardXP(mobXP(m)) {
+		if pk.awardXP(killXPFor(m, pk.State.Level)) {
 			pk.ensurePetalCap()
 			if cl := r.clients[m.KillerID]; cl != nil {
 				cl.deliver([]byte(`{"type":"levelup","level":` +
@@ -3480,13 +3481,10 @@ func (r *Room) setHotbarAt(p *Player, bar, slot int, def *PetalDef) {
 // petalDropXP — опыт за выброс петаля: почти полная «сила», но меньше, чем её
 // ценность при носении; растёт с редкостью и статами.
 func petalDropXP(d PetalDef) float64 {
-	power := d.DMG*2 + d.MaxHP
-	if power <= 0 {
-		return 0
-	}
-	base := power * 0.6
-	base *= 1 + petalPower[minInt(d.Rarity, len(petalPower)-1)]*0.1
-	return base
+	// Выброс = та же цена, что абсорб (порт родителя): номинал вида, потолок
+	// absorbMaxKills, штраф tierGap. Уровень игрока неизвестен здесь —
+	// потолок и номинал уже гасят эксплойты, штраф тиров применяет абсорб.
+	return petalXPCapped(d)
 }
 
 // minInt возвращает меньшее из двух целых (для ограничения индексов).
