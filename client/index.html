@@ -1264,7 +1264,313 @@
             color: #fff; font-size: 18px; font-weight: 700; text-shadow: 0 1px 6px rgba(0,0,0,0.8);
             z-index: 40; display: none; pointer-events: none;
         }
+    
     </style>
+    <!-- ================================================================
+         THEME 2.0 — редизайн UI (aurora + glass). Слой переопределяет
+         старые правила выше (каскад: ниже = сильнее при равной специфике).
+         ================================================================ -->
+    <style>
+        :root {
+            --bg-0: #05070d;
+            --bg-1: #0a0f1c;
+            --glass: rgba(255,255,255,0.055);
+            --glass-strong: rgba(255,255,255,0.09);
+            --stroke: rgba(255,255,255,0.11);
+            --stroke-soft: rgba(255,255,255,0.07);
+            --txt-1: #eef2fb;
+            --txt-2: #9aa7c0;
+            --acc-cyan: #22d3ee;
+            --acc-violet: #a78bfa;
+            --acc-pink: #ff2d95;
+            --acc-gold: #ffd54f;
+            --grad-acc: linear-gradient(92deg, #22d3ee 0%, #a78bfa 52%, #ff2d95 100%);
+            --grad-btn: linear-gradient(135deg, #14b8d4 0%, #7c6cf0 100%);
+            --grad-btn-hover: linear-gradient(135deg, #2fd6f2 0%, #8d7ffa 100%);
+            --radius-lg: 22px; --radius-md: 14px; --radius-sm: 9px;
+            --font: 'Segoe UI Variable Display', 'Segoe UI', Inter, system-ui, -apple-system, sans-serif;
+        }
+        html, body { background: var(--bg-0); font-family: var(--font); }
+        body { color: var(--txt-1); -webkit-font-smoothing: antialiased; }
+
+        /* ---------- Aurora-фон экранов (логин/регистрация/меню) ---------- */
+        .screen {
+            background: var(--bg-0);
+            font-family: var(--font);
+            overflow: hidden;
+        }
+        .screen::before, .screen::after {
+            content: ''; position: absolute; inset: -30%; pointer-events: none;
+            background:
+                radial-gradient(38% 32% at 22% 24%, rgba(34,211,238,0.16), transparent 70%),
+                radial-gradient(34% 30% at 78% 30%, rgba(167,139,250,0.15), transparent 70%),
+                radial-gradient(46% 40% at 50% 88%, rgba(255,45,149,0.10), transparent 70%);
+            filter: blur(30px);
+            animation: auroraDrift 26s ease-in-out infinite alternate;
+        }
+        .screen::after {
+            background:
+                radial-gradient(30% 26% at 70% 70%, rgba(34,211,238,0.10), transparent 70%),
+                radial-gradient(26% 24% at 26% 76%, rgba(167,139,250,0.12), transparent 70%);
+            animation-duration: 34s; animation-delay: -12s;
+        }
+        @keyframes auroraDrift {
+            0%   { transform: translate3d(-4%, -3%, 0) scale(1); }
+            50%  { transform: translate3d(3%, 4%, 0) scale(1.08); }
+            100% { transform: translate3d(5%, -4%, 0) scale(1.04); }
+        }
+        /* Плавающие лепестки (генерирует inline theme-скрипт) */
+        .ambient { position: absolute; inset: 0; pointer-events: none; z-index: 0; }
+        .ambient .fl {
+            position: absolute; bottom: -80px; opacity: 0; will-change: transform;
+            animation: floatUp linear infinite;
+            filter: drop-shadow(0 4px 14px rgba(0,0,0,0.5));
+        }
+        @keyframes floatUp {
+            0%   { transform: translate3d(0, 0, 0) rotate(0deg); opacity: 0; }
+            8%   { opacity: var(--o, 0.5); }
+            88%  { opacity: var(--o, 0.5); }
+            100% { transform: translate3d(var(--dx, 40px), -115vh, 0) rotate(var(--rot, 320deg)); opacity: 0; }
+        }
+        .screen > *:not(.ambient):not(#lobbyOverlay):not(#lobbyDecorCanvas):not(.menuBigBtn)
+:not(#menuProfile):not(#menuHotbarWrap):not(#invPanel):not(#absorbPanel)
+:not(#settingsPanel):not(#onlineBox):not(#chatWindow):not(#chat)
+:not(#adminBtn):not(#adminPanel):not(#adminBadge):not(#petalTip)
+{ position: relative; z-index: 1; }
+
+        /* ---------- Типографика ---------- */
+        .screen h1 {
+            font-size: 46px; font-weight: 800; letter-spacing: -0.5px;
+            background: var(--grad-acc);
+            -webkit-background-clip: text; background-clip: text; color: transparent;
+            filter: drop-shadow(0 6px 30px rgba(124,108,240,0.35));
+        }
+        .screen h2 { font-size: 15px; font-weight: 600; letter-spacing: 4px; text-transform: uppercase; color: var(--txt-2); margin-bottom: 6px; }
+
+        /* ---------- Поля ввода ---------- */
+        .screen input[type=text], .screen input[type=password], #lobbyCodeInput {
+            width: 300px; padding: 13px 16px; font-size: 16px; text-align: center;
+            font-family: var(--font);
+            border: 1px solid var(--stroke); border-radius: 12px;
+            background: rgba(255,255,255,0.05); color: var(--txt-1);
+            outline: none; transition: border-color .15s, box-shadow .15s, background .15s;
+        }
+        .screen input::placeholder, #lobbyCodeInput::placeholder { color: #5d6b88; letter-spacing: 1px; }
+        .screen input:focus, #lobbyCodeInput:focus {
+            border-color: rgba(34,211,238,0.65);
+            box-shadow: 0 0 0 3px rgba(34,211,238,0.14), 0 8px 30px rgba(0,0,0,0.35);
+            background: rgba(255,255,255,0.07);
+        }
+
+        /* ---------- Кнопки (авторизация/меню) ---------- */
+        .screen button, #lobbyOverlay button {
+            font-family: var(--font); font-weight: 650; letter-spacing: 0.3px;
+            border: 1px solid rgba(255,255,255,0.14); border-radius: 12px;
+            color: #fff; cursor: pointer;
+            transition: transform .12s ease, box-shadow .15s ease, filter .15s ease, background .15s ease;
+        }
+        /* Кнопки меню (Lobby/Settings) — стеклянные с градиентной кромкой */
+        #playBtn, #settingsBtn {
+            background: linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.045));
+            border: 1px solid var(--stroke);
+            min-width: 220px; padding: 13px 44px; font-size: 17px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.10);
+        }
+        #playBtn { border-color: rgba(34,211,238,0.35); color: #a5f3fc; }
+        #playBtn:hover { box-shadow: 0 12px 36px rgba(34,211,238,0.25); border-color: rgba(34,211,238,0.6); }
+        .screen button:hover, #lobbyOverlay button:hover {
+            transform: translateY(-2px); filter: brightness(1.1);
+            box-shadow: 0 10px 26px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.06) inset;
+        }
+        .screen button:active, #lobbyOverlay button:active { transform: translateY(0); filter: brightness(0.96); }
+        #loginBtn, #regBtn {
+            background: var(--grad-btn); border: none;
+            box-shadow: 0 8px 28px rgba(56,120,255,0.30);
+        }
+        #loginBtn:hover, #regBtn:hover { background: var(--grad-btn-hover); }
+        .screen .switch-link { color: #7dd3fc; transition: color .15s; }
+        .screen .switch-link:hover { color: #bae6fd; }
+        #authError { color: #ff8098; font-size: 13px; min-height: 18px; }
+
+        /* ---------- Большие боковые кнопки (Shapes/Craft/Absorb) ---------- */
+        .menuBigBtn {
+            border-radius: 18px;
+            background: linear-gradient(180deg, rgba(255,255,255,0.09), rgba(255,255,255,0.04)) !important;
+            border: 1px solid var(--stroke) !important;
+            backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+            box-shadow: 0 10px 34px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.10) !important;
+        }
+        .menuBigBtn:hover { transform: translateY(-2px) !important; }
+
+        /* Хотбар и карточки меню */
+        .menu-hotbar {
+            background: rgba(10,14,24,0.55); border: 1px solid var(--stroke);
+            backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+            border-radius: 16px; transition: border-color .2s, box-shadow .2s, opacity .2s;
+        }
+        .menu-hotbar.active {
+            border-color: rgba(255,213,79,0.55);
+            box-shadow: 0 0 24px rgba(255,213,79,0.16), inset 0 0 18px rgba(255,213,79,0.05);
+        }
+        .inv-slot {
+            border-radius: 12px !important;
+            background: rgba(255,255,255,0.05) !important;
+            border: 1px solid var(--stroke-soft) !important;
+            transition: transform .12s, border-color .15s, box-shadow .15s;
+        }
+        .inv-slot:hover {
+            transform: translateY(-2px);
+            border-color: rgba(34,211,238,0.5) !important;
+            box-shadow: 0 8px 22px rgba(0,0,0,0.4);
+        }
+
+        /* ---------- Лобби (оверлей) ---------- */
+        #lobbyOverlay {
+            background: linear-gradient(180deg, rgba(6,10,20,0.82), rgba(5,7,13,0.92));
+            backdrop-filter: blur(22px); -webkit-backdrop-filter: blur(22px);
+        }
+        #lobbyOverlay .lo-col {
+            background: var(--glass);
+            border: 1px solid var(--stroke);
+            backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+            border-radius: 20px; padding: 18px;
+            transition: border-color .2s, box-shadow .2s;
+        }
+        #lobbyOverlay .lo-col:hover {
+            border-color: rgba(255,255,255,0.18);
+            box-shadow: 0 18px 50px rgba(0,0,0,0.35);
+        }
+        .lo-title { letter-spacing: 3px; }
+        #lobbyOverlay button {
+            background: var(--grad-btn) !important; border: none; border-radius: 11px;
+            padding: 11px 16px; font-size: 14px;
+            box-shadow: 0 6px 20px rgba(56,120,255,0.22);
+        }
+        .lc-primary, .lc-start { background: var(--grad-btn) !important; font-weight: 700; }
+        .lc-secondary { background: linear-gradient(135deg, #b8860b, #8a6508) !important; }
+        .lc-danger { background: linear-gradient(135deg, #e5484d, #b3282d) !important; }
+        #lobbyBackBtn { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+        #lobbyList .lobby-item {
+            background: var(--glass); border: 1px solid transparent; border-radius: 11px;
+            transition: background .15s, border-color .15s, transform .12s;
+        }
+        #lobbyList .lobby-item:hover {
+            background: var(--glass-strong); border-color: rgba(34,211,238,0.35);
+            transform: translateX(2px);
+        }
+        #lobbyCodeBig {
+            font-size: 30px; font-weight: 800; letter-spacing: 9px;
+            background: linear-gradient(92deg, #ffd54f, #ffb347);
+            -webkit-background-clip: text; background-clip: text; color: transparent;
+        }
+        /* Зона-чипы: капсулы */
+        #lobbyZoneRow .zone-btn {
+            border-radius: 999px !important; padding: 7px 0 !important;
+            font-size: 10.5px !important; letter-spacing: 0.5px;
+            background: rgba(255,255,255,0.06) !important;
+            border: 1.5px solid transparent !important;
+            transition: opacity .15s, box-shadow .15s, transform .12s;
+        }
+        #lobbyZoneRow .zone-btn:hover { transform: translateY(-2px); opacity: 0.85 !important; }
+        #lobbyZoneRow .zone-btn.sel {
+            opacity: 1 !important;
+            box-shadow: 0 0 18px rgba(255,255,255,0.25), 0 6px 20px rgba(0,0,0,0.35) !important;
+        }
+
+        /* ---------- Панели (крафт/абсорб/шейпы) ---------- */
+        #craftPanel, #absorbPanel, #shapesPanel, .center-panel {
+            border: 1px solid rgba(255,255,255,0.13) !important;
+            border-radius: 24px !important;
+            background:
+                radial-gradient(120% 90% at 50% 0%, rgba(124,108,240,0.14), transparent 60%),
+                linear-gradient(180deg, rgba(16,22,38,0.97), rgba(8,11,20,0.98)) !important;
+            backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+            box-shadow: 0 30px 90px rgba(0,0,0,0.65), inset 0 1px 0 rgba(255,255,255,0.08) !important;
+        }
+        #craftPanelTitle { letter-spacing: 3px; }
+
+        /* ---------- Экран смерти ---------- */
+        #death {
+            background:
+                radial-gradient(60% 45% at 50% 42%, rgba(229,72,77,0.16), transparent 70%),
+                radial-gradient(40% 30% at 50% 45%, rgba(255,45,149,0.08), transparent 70%),
+                rgba(4,6,10,0.90) !important;
+            backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+        }
+        #death h2 {
+            font-size: 42px; font-weight: 900; letter-spacing: 6px;
+            background: linear-gradient(92deg, #ff8098, #ff2d55);
+            -webkit-background-clip: text; background-clip: text; color: transparent;
+            filter: drop-shadow(0 8px 40px rgba(255,45,85,0.35));
+        }
+        #deathWaveLine { color: var(--txt-2); letter-spacing: 1px; }
+        #death .btn-group button { background: var(--glass); border: 1px solid var(--stroke); }
+        #respawnBtn { background: var(--grad-btn) !important; border: none !important; }
+
+        /* ---------- Волновой баннер и отсчёт ---------- */
+        #waveBanner {
+            background: linear-gradient(90deg, rgba(34,211,238,0.14), rgba(167,139,250,0.18), rgba(255,45,149,0.14)) !important;
+            border: 1px solid rgba(255,255,255,0.16) !important;
+            border-radius: 18px !important;
+            backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+            box-shadow: 0 14px 44px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.10) !important;
+            animation: bannerIn .35s cubic-bezier(.2,.9,.3,1.2);
+        }
+        @keyframes bannerIn { from { transform: translateY(-24px); opacity: 0; } to { transform: none; opacity: 1; } }
+        #waveBannerMain { font-weight: 800; letter-spacing: 2px; }
+        #startCountdown { font-weight: 900; }
+        #startCountdown .sc-sub { color: var(--acc-gold); }
+
+        /* ---------- Чат и скроллбары ---------- */
+        #chatWindow {
+            background: rgba(8,12,22,0.72) !important;
+            border: 1px solid var(--stroke-soft) !important;
+            border-radius: 14px !important;
+            backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+        }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.14); border-radius: 8px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.24); }
+
+        /* ---------- Экран загрузки ---------- */
+        #loading { background: radial-gradient(60% 50% at 50% 45%, #0c1322, #04060b); }
+        #loading .loader-spinner { border-color: rgba(255,255,255,0.10); border-top-color: var(--acc-cyan); box-shadow: 0 0 30px rgba(34,211,238,0.25); }
+    </style>
+    <script>
+    // theme (inline): плавающие лепестки на экранах меню/логина.
+    (function () {
+        var COLORS = ['#ecf0f1', '#2ecc71', '#f1c40f', '#e74c3c', '#3498db', '#1abc9c', '#9b59b6', '#ff2d95'];
+        var SVG = '<svg viewBox="-12 -12 24 24" width="S" height="S">' +
+            '<path d="M0,-10 C7,-6 7,6 0,10 C-7,6 -7,-6 0,-10 Z" fill="C" opacity="0.85"/>' +
+            '<path d="M0,-6 C3.5,-3.5 3.5,3.5 0,6 C-3.5,3.5 -3.5,-3.5 0,-6 Z" fill="#ffffff" opacity="0.25"/></svg>';
+        function seed() {
+            document.querySelectorAll('.screen').forEach(function (scr) {
+                if (scr.querySelector('.ambient')) return;
+                var box = document.createElement('div');
+                box.className = 'ambient';
+                var n = 14;
+                for (var i = 0; i < n; i++) {
+                    var el = document.createElement('div');
+                    el.className = 'fl';
+                    var size = 10 + Math.random() * 22;
+                    var col = COLORS[Math.floor(Math.random() * COLORS.length)];
+                    el.innerHTML = SVG.replace('S', size.toFixed(0)).replace('C', col);
+                    el.style.left = (Math.random() * 100).toFixed(1) + '%';
+                    el.style.setProperty('--dx', ((Math.random() * 160) - 80).toFixed(0) + 'px');
+                    el.style.setProperty('--rot', (240 + Math.random() * 360).toFixed(0) + 'deg');
+                    el.style.setProperty('--o', (0.14 + Math.random() * 0.30).toFixed(2));
+                    el.style.animationDuration = (16 + Math.random() * 22).toFixed(1) + 's';
+                    el.style.animationDelay = '-' + (Math.random() * 30).toFixed(1) + 's';
+                    box.appendChild(el);
+                }
+                scr.insertBefore(box, scr.firstChild);
+            });
+        }
+        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', seed);
+        else seed();
+    })();
+    </script>
 </head>
 <body>
     <!-- Экран входа -->
