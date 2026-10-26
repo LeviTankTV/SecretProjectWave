@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SecretProjectWave — Wave Survival</title>
+    <!-- Шрифт логотипа/заголовков (порт родителя) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&display=block" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         /* Запрет выделения текста/петалей ВЕЗДЕ (включая shift+click-перетаскивание
@@ -1571,8 +1574,216 @@
         else seed();
     })();
     </script>
+
+    <!-- ================================================================
+         THEME 2.1 — «как в SecretProject»: летающие мобы за меню,
+         логотип Orbitron с золотым градиентом и бликом, неоновое трио,
+         профиль родителя, виньетка. Переопределяет THEME 2.0.
+         ================================================================ -->
+    <style>
+        /* ---------- Слои декора (menu_decor.js) ---------- */
+        #menuDecorCanvas {
+            position: fixed; inset: 0; width: 100vw; height: 100vh;
+            z-index: 25; pointer-events: none; opacity: 0.85;
+        }
+        #menuVignette {
+            position: fixed; inset: 0; z-index: 27; pointer-events: none;
+            background: radial-gradient(ellipse at 50% 45%, transparent 52%, rgba(0,0,0,0.55) 100%);
+        }
+        #cursorTrail { position: fixed; inset: 0; z-index: 58; pointer-events: none; }
+        .ct-shard {
+            position: absolute; pointer-events: none; opacity: 0;
+            box-shadow: 0 0 8px var(--glow);
+            will-change: transform, opacity;
+        }
+        /* Auroro-псевдослои и лепестки THEME 2.0 больше не нужны: их заменил
+           живой декор родителя. */
+        .screen::before, .screen::after { display: none; }
+        .ambient { display: none !important; }
+
+        /* ---------- Экраны: полупрозрачный радиал родителя ---------- */
+        .screen {
+            background: radial-gradient(ellipse at 50% 40%,
+                rgba(13,19,30,0.42) 0%, rgba(9,12,19,0.78) 55%, rgba(6,8,13,0.94) 100%);
+        }
+
+        /* ---------- Логотип: Orbitron + золотой градиент + блик + левитация ---------- */
+        .screen h1 {
+            font-family: 'Orbitron', 'Segoe UI', sans-serif;
+            font-size: clamp(28px, 6vh, 44px); font-weight: 900;
+            letter-spacing: clamp(5px, 1.2vh, 9px); text-transform: uppercase;
+            line-height: 1; text-align: center; align-self: center;
+            background:
+                linear-gradient(115deg, transparent 32%, rgba(255,255,255,0.95) 50%, transparent 68%) no-repeat,
+                linear-gradient(180deg, #ffffff 8%, #ffe9a8 42%, #ffd979 60%, #7be0ff 100%);
+            background-size: 260% 100%, 100% 100%;
+            background-position: -130% 0, 0 0;
+            -webkit-background-clip: text; background-clip: text; color: transparent;
+            filter: drop-shadow(0 0 22px rgba(255,217,121,0.35)) drop-shadow(0 4px 14px rgba(0,0,0,0.6));
+            animation: logoFloat 4.5s ease-in-out infinite, logoGlint 5.2s ease-in-out infinite;
+        }
+        @keyframes logoGlint {
+            0%, 52% { background-position: -130% 0, 0 0; }
+            88%, 100% { background-position: 230% 0, 0 0; }
+        }
+        @keyframes logoFloat {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-7px); }
+        }
+        /* Подзаголовки авторизации — как у родителя (простые, светлые) */
+        .screen h2 {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            font-size: 26px; font-weight: 700; letter-spacing: 0;
+            text-transform: none; color: #e8eef8; margin-bottom: 8px;
+        }
+        /* Поля и кнопки авторизации — плоский стиль родителя */
+        .screen input[type=text], .screen input[type=password] {
+            width: 280px; padding: 12px; font-size: 18px; text-align: center;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            border: 2px solid #333; border-radius: 8px;
+            background: #1a1e27; color: #fff; outline: none;
+            box-shadow: none; transition: border-color .15s;
+        }
+        .screen input:focus { border-color: #7be0ff; box-shadow: none; }
+        .screen button {
+            background: #2fbf71; border: none; border-radius: 8px;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            font-weight: 400; letter-spacing: 0;
+            box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none;
+        }
+        .screen button:hover { background: #37d380; transform: none; box-shadow: none; filter: none; }
+        #loginBtn, #regBtn { background: #2fbf71; box-shadow: none; }
+
+        /* ---------- Главная кнопка меню: «CHOOSE REALM» родителя ---------- */
+        #playBtn {
+            padding: 16px 84px; font-size: 24px; min-width: 0;
+            font-family: 'Orbitron', 'Segoe UI', sans-serif;
+            font-weight: 800; letter-spacing: 6px; text-transform: uppercase;
+            color: #fff; background: linear-gradient(180deg, #37d380, #23995d);
+            border: 1px solid rgba(255,255,255,0.22); border-radius: 14px;
+            box-shadow: 0 6px 24px rgba(47,191,113,0.35), inset 0 1px 0 rgba(255,255,255,0.25);
+            transition: transform .15s, box-shadow .2s, filter .2s;
+        }
+        #playBtn:hover {
+            transform: translateY(-2px) scale(1.02);
+            filter: brightness(1.08);
+            box-shadow: 0 10px 34px rgba(47,191,113,0.55), 0 0 26px rgba(123,224,255,0.25), inset 0 1px 0 rgba(255,255,255,0.3);
+        }
+        #settingsBtn {
+            background: rgba(30,36,50,0.85); color: #cfd6e4;
+            border: 1px solid rgba(255,255,255,0.16); border-radius: 10px;
+            min-width: 220px; padding: 12px 44px; font-size: 17px;
+        }
+        #settingsBtn:hover { background: rgba(42,50,68,0.9); }
+        /* Физическое нажатие — вдавливание (порт родителя) */
+        #playBtn:active, #settingsBtn:active, .menuBigBtn:active {
+            transform: translateY(2px) scale(.965);
+            box-shadow: 0 1px 4px rgba(0,0,0,0.6) !important;
+            filter: brightness(.92);
+        }
+
+        /* ---------- Трио меню: неоновые рамки с бегущими студами ---------- */
+        #menuTrio {
+            position: fixed; bottom: 44px; left: 50%; transform: translateX(-50%);
+            z-index: 59; display: flex; gap: 46px; align-items: center;
+        }
+        #menu .menuBigBtn {
+            position: relative;
+            display: inline-flex; align-items: center; justify-content: center; gap: 11px;
+            min-width: 182px; height: 62px; padding: 0 24px; box-sizing: border-box;
+            font-family: 'Orbitron','Segoe UI',sans-serif;
+            font-size: 13px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+            border-radius: 4px; cursor: pointer; color: var(--ac, #cfd6e4);
+            background: linear-gradient(180deg, #191423, #100b16);
+            border: 1px solid var(--acB, rgba(255,255,255,.3));
+            box-shadow: inset 0 0 0 3px rgba(0,0,0,.5), inset 0 0 0 4px var(--acB, rgba(255,255,255,.3));
+            backdrop-filter: none; -webkit-backdrop-filter: none;
+            transition: box-shadow .18s ease, transform .1s ease, filter .15s ease;
+        }
+        #menu .menuBigBtn:hover {
+            box-shadow: inset 0 0 0 3px rgba(0,0,0,.5), inset 0 0 0 4px var(--acB, rgba(255,255,255,.3)), 0 0 16px var(--soft, transparent);
+            filter: brightness(1.12);
+            transform: none;
+        }
+        #menu .menuBigBtn::before, #menu .menuBigBtn::after {
+            content: ''; position: absolute; width: 8px; height: 8px;
+            background: var(--ac, #fff); transform: rotate(45deg);
+            box-shadow: 0 0 8px var(--ac, #fff);
+            animation: trioOrbit 7s linear infinite;
+        }
+        #menu .menuBigBtn::after { animation-delay: -3.5s; }
+        @keyframes trioOrbit {
+            0%   { left: -4px;  top: -4px; }
+            25%  { left: calc(100% - 4px); top: -4px; }
+            50%  { left: calc(100% - 4px); top: calc(100% - 4px); }
+            75%  { left: -4px;  top: calc(100% - 4px); }
+            100% { left: -4px;  top: -4px; }
+        }
+        #menu #craftBtn.has-pending { border-color: #4caf50; color: #7ee38b; box-shadow: 0 0 16px rgba(76,175,80,0.5); }
+
+        /* ---------- Хотбар меню: карточки родителя ---------- */
+        .menu-hotbar {
+            align-items: center; gap: 10px; padding: 8px 12px; border-radius: 14px;
+            background: rgba(10,14,22,0.55);
+            border: 1px solid rgba(255,255,255,0.12);
+            backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+            opacity: 0.55; transition: opacity .2s, border-color .2s, box-shadow .2s;
+        }
+        .menu-hotbar:hover { opacity: 0.85; border-color: rgba(123,224,255,0.32); }
+        .menu-hotbar.active { opacity: 1; border-color: rgba(255,213,79,0.55); box-shadow: 0 0 16px rgba(255,213,79,0.22); }
+        .menu-hotbar:not(.active) { transform: scale(0.95); }
+        #menuHotbarLabel, .menu-hotbar-title {
+            font-family: 'Orbitron', 'Segoe UI', sans-serif;
+            text-transform: uppercase; letter-spacing: 3px;
+        }
+        #menuHotbarHint { font-family: 'Orbitron', 'Segoe UI', sans-serif; font-size: 11px; color: #8a93a6; }
+
+        /* ---------- Профиль: карточка родителя ---------- */
+        #menuProfileCard {
+            padding: 10px 14px 10px 10px;
+            background: linear-gradient(180deg, rgba(0,0,0,0.72), rgba(0,0,0,0.55));
+            border: 1px solid rgba(255,255,255,0.18); border-radius: 18px;
+            box-shadow: 0 4px 18px rgba(0,0,0,0.5), inset 0 0 6px rgba(0,0,0,0.5);
+            backdrop-filter: none; -webkit-backdrop-filter: none;
+        }
+        #menuAvatar {
+            border: 3px solid #7fb2ff;
+            box-shadow: 0 0 14px rgba(127,178,255,0.7), inset 0 2px 6px rgba(255,255,255,0.3);
+            transition: border-color 0.45s ease, box-shadow 0.45s ease;
+        }
+        #menuProfileNick { font-family: 'Orbitron', 'Segoe UI', sans-serif; font-weight: 700; letter-spacing: 0.5px; }
+        /* XP-полоса: золотой градиент родителя */
+        #menuXpBar { border-radius: 12px; }
+
+        /* Онлайн-счётчик: стеклянная карточка справа сверху */
+        #onlineBox {
+            background: linear-gradient(180deg, rgba(0,0,0,0.62), rgba(0,0,0,0.48));
+            border: 1px solid rgba(255,255,255,0.14); border-radius: 14px;
+            backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+        }
+
+        /* Подсказка управления внизу — Orbitron, приглушённая */
+        .screen .hint { font-family: 'Orbitron', 'Segoe UI', sans-serif; letter-spacing: 1px; color: #77839c; }
+
+        /* ---------- Вёрстка меню 2.1: колонка сверху, трио внизу ---------- */
+        #menu { justify-content: flex-start; padding-top: 14px; padding-bottom: 150px; gap: 13px; overflow-y: auto; }
+        /* Логотип короче Wave-имени: чуть меньше, чтобы не задевать профиль */
+        .screen h1 { font-size: clamp(22px, 4.6vh, 36px); letter-spacing: clamp(3px, 0.8vh, 6px); }
+        /* Кнопки трио: гасим старые per-id оффсеты (left/bottom) — ровный ряд */
+        #menuTrio .menuBigBtn {
+            position: relative !important;
+            left: auto !important; right: auto !important;
+            top: auto !important; bottom: auto !important;
+        }
+        #menuTrio { bottom: 20px; }
+    </style>
 </head>
 <body>
+    <!-- Декор меню (порт родителя): летающие мобы, звёзды, виньетка, шлейф -->
+    <canvas id="menuDecorCanvas"></canvas>
+    <div id="menuVignette"></div>
+    <div id="cursorTrail"></div>
+
     <!-- Экран входа -->
     <div id="loginScreen" class="screen active">
         <h1>SecretProjectWave</h1>
@@ -1679,8 +1890,9 @@
         <div id="errorBox"></div>
         <p class="hint menu-home">Controls: WASD (or Arrow keys) — move. Shift — pull shapes closer. Space — push shapes away.</p>
 
-        <!-- Секции слева снизу: большие кнопки с иконками как в игре -->
-        <button id="absorbBtn" class="menuBigBtn menu-home" title="Absorb shapes for XP">
+        <!-- Трио меню (порт родителя): неоновые рамки с бегущими студами -->
+        <div id="menuTrio" class="menu-home">
+        <button id="absorbBtn" class="menuBigBtn menu-home" title="Absorb shapes for XP" style="--ac:#d9a5ff; --acB:rgba(178,140,255,.5); --soft:rgba(178,140,255,.14)">
             <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M20.5 3.5 L14 10"/>
                 <path d="M14 4.5 V10 h5.5"/>
@@ -1690,7 +1902,7 @@
             <span class="mb-label">Absorb</span>
         </button>
 
-        <button id="craftBtn" class="menuBigBtn menu-home" title="Craft (C)">
+        <button id="craftBtn" class="menuBigBtn menu-home" title="Craft (C)" style="--ac:#ffd54f; --acB:rgba(255,214,79,.5); --soft:rgba(255,214,79,.13)">
             <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true">
                 <circle cx="12" cy="12" r="3.4"/>
                 <path d="M12 3v2.6M12 18.4V21M3 12h2.6M18.4 12H21"/>
@@ -1699,7 +1911,7 @@
             <span class="mb-label" id="craftBtnLabel">Craft</span>
         </button>
 
-        <button id="invBtn" class="menuBigBtn menu-home" title="Shapes (I)">
+        <button id="invBtn" class="menuBigBtn menu-home" title="Shapes (I)" style="--ac:#7be0ff; --acB:rgba(123,224,255,.5); --soft:rgba(123,224,255,.12)">
             <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" aria-hidden="true">
                 <rect x="3.5" y="3.5" width="7" height="7" rx="1.6"/>
                 <rect x="13.5" y="3.5" width="7" height="7" rx="1.6"/>
@@ -1708,6 +1920,7 @@
             </svg>
             <span class="mb-label">Shapes</span>
         </button>
+        </div>
 
         <!-- Окно крафта вынесено на уровень body (ниже) — работает и в меню, и в игре -->
         <!-- Окно Absorb: уничтожение фигур за XP (только меню) -->
@@ -2198,6 +2411,7 @@
     <script src="js/showcase_legacy.js?v=1"></script>
     <script src="js/showcase_designs.js?v=1"></script>
     <script src="js/audio.js?v=1"></script>
+    <script src="js/menu_decor.js?v=1"></script>
     <script src="js/main.js?v=190"></script>
     <script src="js/lobby.js?v=1"></script>
 </body>

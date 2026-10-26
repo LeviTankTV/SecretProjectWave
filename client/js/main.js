@@ -207,6 +207,15 @@ function showScreen(name) {
         closeGameInv();
     }
     syncTicker();
+    // Декор меню (порт родителя, menu_decor.js): летающие мобы + звёзды +
+    // шлейф курсора. auth — падают сверху, menu — летят слева; в игре — стоп.
+    try {
+        if (typeof startMenuDecor === 'function') {
+            if (name === 'login' || name === 'register') startMenuDecor('auth');
+            else if (name === 'menu') startMenuDecor('menu');
+            else stopMenuDecor();
+        }
+    } catch (e) {}
 }
 
 // ----- Внутриигровой инвентарь -----
@@ -338,6 +347,7 @@ function buildHotbarSlotLite(bar, i, it) {
 
 // ----- Плавный переход на чёрный экран "Loading..." -----
 function showLoading(text) {
+    try { if (typeof stopMenuDecor === 'function') stopMenuDecor(); } catch (e) {}
     if (loadingText) loadingText.textContent = text || 'Loading...';
     if (loadingEl) loadingEl.classList.add('show');
 }
