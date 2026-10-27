@@ -99,7 +99,7 @@ func (r *Room) updateProjectiles(dt float64) {
 				if m.Damage == nil {
 					m.Damage = map[string]float64{}
 				}
-				m.Damage[pr.OwnerID] += hitDmg
+				addMobDamage(m, pr.OwnerID, hitDmg)
 				if m.HP <= 0 {
 					m.KillerID = pr.OwnerID
 					r.awardMobKill(m)

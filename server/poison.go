@@ -80,7 +80,7 @@ func (r *Room) applyPoison(dt float64) {
 		}
 		m.HP -= dmg
 		if m.PoisonBy != "" {
-			m.Damage[m.PoisonBy] += dmg
+			addMobDamage(m, m.PoisonBy, dmg)
 		}
 		if m.HP <= 0 {
 			m.HP = 0

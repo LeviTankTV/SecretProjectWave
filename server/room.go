@@ -1227,7 +1227,7 @@ func (r *Room) applySaturnRings(p *Player, dt float64) {
 		// Tier-гейт редкости: Common/Line/Triangle сатурн-петали в 10 раз
 		// слабее против мобов редкостью выше своей.
 		m.HP -= dmg * petalVsMobMult(ringRar, m.Rarity)
-		m.Damage[p.State.ID] += dmg * petalVsMobMult(ringRar, m.Rarity)
+		addMobDamage(m, p.State.ID, dmg*petalVsMobMult(ringRar, m.Rarity))
 		if m.HP <= 0 {
 			m.KillerID = p.State.ID
 			r.awardMobKill(m)
@@ -1608,7 +1608,7 @@ func (r *Room) finishTransfer(p *Player) {
 func (r *Room) resetMobAggroAgainst(p *Player) {
 	for i := range r.mobs {
 		m := &r.mobs[i]
-		if m.Damage[p.State.ID] > 0 {
+		if mobDamageOf(m, p.State.ID) > 0 {
 			delete(m.Damage, p.State.ID)
 			if m.state == "chase" {
 				m.state = "patrol"
@@ -1830,7 +1830,7 @@ func (r *Room) fightPetalsVsMobs(dt float64) {
 					dmg := baseDmg * petalVsMobMult(pet.Rarity, m.Rarity)
 					// Учитываем урон мобу от этого игрока (для дропа по топ-дамагерам).
 					m.HP -= dmg
-					m.Damage[p.State.ID] += dmg
+					addMobDamage(m, p.State.ID, dmg)
 					// Лайфстил (oval): лечит игрока от нанесённого урона.
 					if petalKinds[pet.Kind].Lifesteal {
 						p.State.HP += dmg * lifestealPct
@@ -1877,7 +1877,7 @@ func (r *Room) fightPetalsVsMobs(dt float64) {
 					if petalKinds[pet.Kind].Thorns {
 						ref := m.DMG * 0.3 * thornsReflectRatio * float64(strikes)
 						m.HP -= ref
-						m.Damage[p.State.ID] += ref
+						addMobDamage(m, p.State.ID, ref)
 					}
 					// Бомба (ball): мини-АОЕ вокруг точки удара.
 					if petalKinds[pet.Kind].Bomb {
@@ -1891,7 +1891,7 @@ func (r *Room) fightPetalsVsMobs(dt float64) {
 					// Самоподобие (fractalite): шанс двойного удара (на берст).
 					if petalKinds[pet.Kind].Twin && rand.Float64() < twinChance {
 						m.HP -= dmg
-						m.Damage[p.State.ID] += dmg
+						addMobDamage(m, p.State.ID, dmg)
 					}
 					// Руна (rune): удар вешает руну на моба (за каждый удар
 					// берста); runeStackNeed стаков → взрыв AoE (runeBoom).
@@ -2038,7 +2038,7 @@ func (r *Room) runeBoom(fromID string, src *Mob, petDMG float64) {
 		dy := mm.Y - src.Y
 		if math.Sqrt(dx*dx+dy*dy) < runeBoomRadius+mm.Radius {
 			mm.HP -= petDMG * runeBoomMult
-			mm.Damage[fromID] += petDMG * runeBoomMult
+			addMobDamage(mm, fromID, petDMG * runeBoomMult)
 			if mm.HP <= 0 {
 				mm.KillerID = fromID
 				r.awardMobKill(mm)
@@ -2397,7 +2397,7 @@ func (r *Room) fightMobsVsPlayers(dt float64) {
 				if m.SpikeT <= 0 {
 					if bd := bodySpikeDmg(p); bd > 0 {
 						m.HP -= bd
-						m.Damage[p.State.ID] += bd
+						addMobDamage(m, p.State.ID, bd)
 						m.SpikeT = spikeGrindCD
 						if m.HP <= 0 {
 							m.KillerID = p.State.ID
@@ -3501,6 +3501,25 @@ func petalDropXP(d PetalDef) float64 {
 	// absorbMaxKills, штраф tierGap. Уровень игрока неизвестен здесь —
 	// потолок и номинал уже гасят эксплойты, штраф тиров применяет абсорб.
 	return petalXPCapped(d)
+}
+
+
+// addMobDamage — ленивая инициализация карты урона (порт родителя):
+// члены группы Trinity создаются с Damage=nil и получают карту при первом
+// ударе. Без guard'а запись в nil-карту роняла тик паникой.
+func addMobDamage(m *Mob, id string, dmg float64) {
+	if m.Damage == nil {
+		m.Damage = make(map[string]float64)
+	}
+	m.Damage[id] += dmg
+}
+
+// mobDamageOf — чтение урона с nil-безопасностью.
+func mobDamageOf(m *Mob, id string) float64 {
+	if m.Damage == nil {
+		return 0
+	}
+	return m.Damage[id]
 }
 
 // minInt возвращает меньшее из двух целых (для ограничения индексов).

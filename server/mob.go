@@ -1568,12 +1568,12 @@ func (r *Room) updateMob(m *Mob, players map[string]*Player, dt float64) {
 		}
 		// Нейтральная зона: игрока в кармане не видим, ЕСЛИ он не бил этого моба.
 		// (Если бил — m.Damage поднят, агро честное: «тронул моба».)
-		if inPocket(p.State.X, p.State.Y) && m.Damage[p.State.ID] <= 0 {
+		if inPocket(p.State.X, p.State.Y) && mobDamageOf(m, p.State.ID) <= 0 {
 			continue
 		}
 		// Нейтральный моб (Peaceful, напр. Prism): игнорирует игроков, пока
 		// те сами его не ударили (тогда догоняет обидчика по Damage-карте).
-		if mt.Peaceful && m.Damage[p.State.ID] <= 0 {
+		if mt.Peaceful && mobDamageOf(m, p.State.ID) <= 0 {
 			continue
 		}
 		dx := p.State.X - m.X

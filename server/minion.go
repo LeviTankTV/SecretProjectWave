@@ -355,7 +355,7 @@ func (r *Room) fightMinionVsMobs(mn *Minion, dt float64) {
 		if m.Damage == nil {
 			m.Damage = make(map[string]float64)
 		}
-		m.Damage[mn.OwnerID] += mn.DMG
+		addMobDamage(m, mn.OwnerID, mn.DMG)
 		mn.HitCD = petalDamageCD
 		mn.HP -= m.DMG * minionWear
 		if mn.HP <= 0 {

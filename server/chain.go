@@ -76,7 +76,7 @@ func (r *Room) sparkChain(ownerID string, zone int, startX, startY, dmg float64,
 		if bestM.Damage == nil {
 			bestM.Damage = map[string]float64{}
 		}
-		bestM.Damage[ownerID] += curDmg
+		addMobDamage(bestM, ownerID, curDmg)
 		if bestM.HP <= 0 {
 			bestM.KillerID = ownerID
 			r.awardMobKill(bestM)
@@ -168,7 +168,7 @@ func (r *Room) bombSplash(ownerID string, zone int, cx, cy, dmg float64, skipID 
 			if m.Damage == nil {
 				m.Damage = map[string]float64{}
 			}
-			m.Damage[ownerID] += s
+			addMobDamage(m, ownerID, s)
 			if m.HP <= 0 {
 				m.KillerID = ownerID
 				r.awardMobKill(m)
