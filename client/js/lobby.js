@@ -718,6 +718,24 @@ lobbyLeaveBtn.addEventListener('click', () => lobbyApiBusy(lobbyLeaveBtn, async 
     setLobbyCode('');
     refreshLobbyInfo();
 }));
+// WAVEBORN: RETRY на рекапе смерти — запрос рестарта матча (хост) + отсчёт.
+const wbRetryBtn = document.getElementById('wbRetryBtn');
+if (wbRetryBtn) wbRetryBtn.addEventListener('click', async () => {
+    try {
+        const res = await apiCall('/api/lobby-start', { token: authToken });
+        if (res.ok) {
+            const rec = document.getElementById('wbRecap');
+            const sim = document.getElementById('wbDeathSimple');
+            if (rec) rec.style.display = 'none';
+            if (sim) sim.style.display = '';
+            if (typeof hideDeath === 'function') hideDeath();
+            showStartCountdown(5);
+        } else if (typeof errorBox !== 'undefined' && errorBox) {
+            errorBox.textContent = res.error || 'Failed to restart';
+        }
+    } catch (e) {}
+});
+
 lobbyStartBtn.addEventListener('click', () => lobbyApiBusy(lobbyStartBtn, async () => {
     const res = await apiCall('/api/lobby-start', { token: authToken });
     if (!res.ok) errorBox.textContent = res.error || 'Failed to start';
@@ -770,17 +788,40 @@ function resetDeathToWaveDefaults() {
     if (deathTitle) deathTitle.textContent = 'You Died!';
     if (deathSub) deathSub.style.display = 'none';
     if (deathWaveLine) deathWaveLine.style.display = 'none';
+    // WAVEBORN: рекап прячем, простой экран возвращаем.
+    const rec = document.getElementById('wbRecap');
+    const sim = document.getElementById('wbDeathSimple');
+    if (rec) rec.style.display = 'none';
+    if (sim) sim.style.display = '';
+}
+
+// WAVEBORN: накопление времени забега (для рекапа смерти).
+window.__wbRun = { t: 0, waveStartTs: 0 };
+
+// Ключ i18n для типа спец-волны (WAVEBORN)
+function waveSpecialKey(s) {
+    switch (s) {
+        case 'boss': return 'wave.boss';
+        case 'elite': return 'wave.elite';
+        case 'swarm': return 'wave.swarm';
+        case 'tanks': return 'wave.tanks';
+        case 'hunters': return 'wave.hunters';
+        default: return '';
+    }
 }
 
 function handleWaveMsg(msg) {
     switch (msg.state) {
         case 'pending':
             showStartCountdown(msg.break || 5);
+            window.__wbRun.t = 0;
             break;
         case 'start': {
             stopStartCountdown();
             resetDeathToWaveDefaults();
-            const sub = specialNames[msg.special] || 'Clear all mobs';
+            window.__wbRun.waveStartTs = Date.now();
+            const skey = waveSpecialKey(msg.special);
+            const sub = (window.tr && skey) ? window.tr(skey) : (specialNames[msg.special] || 'Clear all mobs');
             showWaveBanner('Wave ' + msg.num, sub, 3500);
             // Звук (audio.js): босс-волна — «открытие врат», обычная — UI-акцент.
             try {
@@ -792,23 +833,48 @@ function handleWaveMsg(msg) {
             break;
         }
         case 'clear':
-            showWaveBanner('Wave ' + msg.num + ' cleared!', 'Next wave soon', 2500);
-            try { if (window.GameAudio) window.GameAudio.ui('claim'); } catch (e) {}
+            if (window.__wbRun.waveStartTs) {
+                window.__wbRun.t += (Date.now() - window.__wbRun.waveStartTs) / 1000;
+                window.__wbRun.waveStartTs = 0;
+            }
+            showWaveBanner('Wave ' + msg.num + ' ' + (window.tr ? window.tr('wave.cleared') : 'cleared'),
+                window.tr ? window.tr('wave.next') : 'Next wave soon', 2500);
             break;
-        case 'gameover':
+        case 'gameover': {
             stopStartCountdown();
-            // Game Over: у всех только Return to Main Menu.
+            if (window.__wbRun.waveStartTs) {
+                window.__wbRun.t += (Date.now() - window.__wbRun.waveStartTs) / 1000;
+                window.__wbRun.waveStartTs = 0;
+            }
+            // WAVEBORN рекап: волна / киллы / время / рекорд + RETRY.
             showDeath();
-            if (deathTitle) deathTitle.textContent = 'GAME OVER';
-            if (deathSub) { deathSub.style.display = 'none'; }
-            if (deathWaveLine) {
-                let line = 'Your party reached wave ' + msg.num;
-                if (msg.kills) line += ' · Kills: ' + msg.kills;
-                if (msg.best && msg.best > msg.num) line += ' · Best: wave ' + msg.best;
-                deathWaveLine.textContent = line;
-                deathWaveLine.style.display = 'block';
+            const simple = document.getElementById('wbDeathSimple');
+            const recap = document.getElementById('wbRecap');
+            if (simple) simple.style.display = 'none';
+            if (recap) {
+                recap.style.display = 'flex';
+                const wv = document.getElementById('wbRecapWave');
+                if (wv) wv.textContent = msg.num;
+                const kl = document.getElementById('wbRecapKills');
+                if (kl) kl.textContent = msg.kills || 0;
+                const tm = document.getElementById('wbRecapTime');
+                if (tm) {
+                    const t = Math.round(window.__wbRun.t);
+                    tm.textContent = Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0');
+                }
+                const bs = document.getElementById('wbRecapBest');
+                const isNewBest = (msg.best !== undefined) && (msg.best <= msg.num);
+                if (bs) {
+                    bs.textContent = msg.best || msg.num;
+                    bs.style.color = isNewBest ? 'var(--wb-lime)' : '#fff';
+                }
+                const lbl = recap.querySelector('.wb-recap-label');
+                if (lbl && window.tr) {
+                    lbl.textContent = isNewBest ? window.tr('death.newBest') : window.tr('death.wiped');
+                }
             }
             break;
+        }
     }
 }
 

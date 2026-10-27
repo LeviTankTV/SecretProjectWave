@@ -234,6 +234,20 @@ const WB_I18N = {
     'lobby.start':          { en: '► Start', ru: '► Старт' },
     'lobby.partyHint':      { en: 'Your party (1/4). Pick the arena zone, then press ► Start.', ru: 'Твоё пати (1/4). Выбери арену и жми ► Старт.' },
     'lobby.noGames':        { en: 'No open games — create your own!', ru: 'Открытых игр нет — создай свою!' },
+    'death.wiped':          { en: 'PARTY WIPED', ru: 'ПАТИ ВЫРЕЗАНО' },
+    'death.wave':           { en: 'WAVE', ru: 'ВОЛНА' },
+    'death.kills':          { en: 'kills', ru: 'киллов' },
+    'death.time':           { en: 'run time', ru: 'время' },
+    'death.best':           { en: 'best', ru: 'рекорд' },
+    'death.retry':          { en: 'RETRY', ru: 'ЗАНОВО' },
+    'death.newBest':        { en: 'NEW BEST!', ru: 'НОВЫЙ РЕКОРД!' },
+    'wave.cleared':         { en: 'cleared', ru: 'зачищена' },
+    'wave.next':            { en: 'Next wave soon', ru: 'Следующая волна скоро' },
+    'wave.boss':            { en: 'BOSS — a ladder boss has awakened', ru: 'БОСС — проснулся босс лестницы' },
+    'wave.elite':           { en: 'ELITE — every mob is a variant', ru: 'ЭЛИТА — каждый моб с подвидом' },
+    'wave.swarm':           { en: 'SWARM — many small fast mobs', ru: 'РОЙ — много мелких быстрых мобов' },
+    'wave.tanks':           { en: 'TANKS — heavy high-rarity mobs', ru: 'ТАНКИ — тяжёлые редкие мобы' },
+    'wave.hunters':         { en: 'HUNTERS — aggressive chasers', ru: 'ОХОТНИКИ — агрессивные преследователи' },
 };
 window.tr = function (key) {
     const row = WB_I18N[key];
@@ -261,6 +275,13 @@ function showScreen(name) {
         menu.classList.add('active');
         updateMenuLevel();
         closeGameInv();
+        // WAVEBORN: прячем HUD волны, оставшийся от матча (артефакт над меню).
+        const wbw = document.getElementById('waveBarWrap');
+        if (wbw) wbw.style.display = 'none';
+        const wht = document.getElementById('waveHudTop');
+        if (wht) wht.style.display = 'none';
+        const roster = document.getElementById('waveRoster');
+        if (roster) roster.innerHTML = '';
     }
     syncTicker();
     // Фон WAVEBORN: волны-осциллографы на экранах меню, стоп в игре.
