@@ -195,6 +195,62 @@ function syncTicker() {
     }
 }
 
+// ===== WAVEBORN i18n: EN по умолчанию + RU, переключатель в настройках =====
+const WB_LANG_KEY = 'wbLang';
+window.WB_LANG = localStorage.getItem(WB_LANG_KEY) || 'en';
+const WB_I18N = {
+    'menu.play':            { en: 'PLAY', ru: 'ИГРАТЬ' },
+    'menu.settings':        { en: 'Settings', ru: 'Настройки' },
+    'menu.hotbar':          { en: 'Hotbar', ru: 'Хотбар' },
+    'menu.hotbarSwitch':    { en: 'X — switch hotbar (1 ↔ 2)', ru: 'X — сменить хотбар (1 ↔ 2)' },
+    'menu.absorb':          { en: 'Absorb', ru: 'Абсорб' },
+    'menu.craft':           { en: 'Craft', ru: 'Крафт' },
+    'menu.shapes':          { en: 'Shapes', ru: 'Фигуры' },
+    'menu.spRecords':       { en: 'Wave Records', ru: 'Рекорды волн' },
+    'menu.spBest':          { en: 'best wave', ru: 'лучшая волна' },
+    'menu.spAch':           { en: 'Achievements', ru: 'Достижения' },
+    'menu.spBrief':         { en: 'Briefing', ru: 'Брифинг' },
+    'menu.tip5':            { en: '◆ Every 5th wave — Swarm / Tanks / Hunters', ru: '◆ Каждая 5-я волна — Swarm / Tanks / Hunters' },
+    'menu.tip10':           { en: '◆ Every 10th — <b style="color:#00f0ff">ladder boss</b> (Hexagon → Origin)', ru: '◆ Каждая 10-я — <b style="color:#00f0ff">босс лестницы</b> (Hexagon → Origin)' },
+    'menu.tip25':           { en: '◆ Every 25th — <b style="color:#ff2e88">elite variants</b>', ru: '◆ Каждая 25-я — <b style="color:#ff2e88">элитные подвиды</b>' },
+    'menu.tipCraft':        { en: '◆ Craft 5 shapes → next rarity (grades UNIQUE..PARAGON)', ru: '◆ Крафт 5 фигур → следующая редкость (грейды UNIQUE..PARAGON)' },
+    'auth.login':           { en: 'Login', ru: 'Вход' },
+    'auth.signup':          { en: 'Sign Up', ru: 'Регистрация' },
+    'auth.signin':          { en: 'Sign In', ru: 'Войти' },
+    'auth.nick':            { en: 'Nick', ru: 'Ник' },
+    'auth.password':        { en: 'Password', ru: 'Пароль' },
+    'auth.toRegister':      { en: 'No account? Sign up', ru: 'Нет аккаунта? Регистрация' },
+    'auth.toLogin':         { en: 'Already have an account? Sign in', ru: 'Уже есть аккаунт? Войти' },
+    'lobby.title':          { en: 'Lobby', ru: 'Лобби' },
+    'lobby.back':           { en: '✕  Back to menu', ru: '✕  В меню' },
+    'lobby.public':         { en: 'Public', ru: 'Публичные' },
+    'lobby.private':        { en: 'Private', ru: 'Приватные' },
+    'lobby.create':         { en: 'Create Public Party', ru: 'Создать пати' },
+    'lobby.createPriv':     { en: 'Create Private Party', ru: 'Приватное пати' },
+    'lobby.join':           { en: 'Join by Code', ru: 'Войти по коду' },
+    'lobby.code':           { en: 'CODE', ru: 'КОД' },
+    'lobby.zoneHost':       { en: 'Arena zone (host):', ru: 'Арена (выбирает хост):' },
+    'lobby.leave':          { en: 'Leave', ru: 'Покинуть' },
+    'lobby.start':          { en: '► Start', ru: '► Старт' },
+    'lobby.partyHint':      { en: 'Your party (1/4). Pick the arena zone, then press ► Start.', ru: 'Твоё пати (1/4). Выбери арену и жми ► Старт.' },
+    'lobby.noGames':        { en: 'No open games — create your own!', ru: 'Открытых игр нет — создай свою!' },
+};
+window.tr = function (key) {
+    const row = WB_I18N[key];
+    if (!row) return key;
+    return row[window.WB_LANG] || row.en;
+};
+// Применяем сохранённый язык при старте (после DOM — вызов в конце файла).
+window.wbSetLang = function (lang) {
+    if (lang !== 'en' && lang !== 'ru') return;
+    window.WB_LANG = lang;
+    localStorage.setItem(WB_LANG_KEY, lang);
+    document.querySelectorAll('[data-wb]').forEach(el => { el.innerHTML = tr(el.dataset.wb); });
+    document.querySelectorAll('[data-wb-ph]').forEach(el => { el.placeholder = tr(el.dataset.wbPh); });
+    document.dispatchEvent(new CustomEvent('wb:lang'));
+};
+
+// showScreen(name) — переключение экранов
 function showScreen(name) {
     loginScreen.classList.remove('active');
     registerScreen.classList.remove('active');
@@ -207,13 +263,11 @@ function showScreen(name) {
         closeGameInv();
     }
     syncTicker();
-    // Декор меню (порт родителя, menu_decor.js): летающие мобы + звёзды +
-    // шлейф курсора. auth — падают сверху, menu — летят слева; в игре — стоп.
+    // Фон WAVEBORN: волны-осциллографы на экранах меню, стоп в игре.
     try {
-        if (typeof startMenuDecor === 'function') {
-            if (name === 'login' || name === 'register') startMenuDecor('auth');
-            else if (name === 'menu') startMenuDecor('menu');
-            else stopMenuDecor();
+        if (typeof startWaveDecor === 'function') {
+            if (name === 'login' || name === 'register' || name === 'menu') startWaveDecor();
+            else stopWaveDecor();
         }
     } catch (e) {}
 }
@@ -347,7 +401,7 @@ function buildHotbarSlotLite(bar, i, it) {
 
 // ----- Плавный переход на чёрный экран "Loading..." -----
 function showLoading(text) {
-    try { if (typeof stopMenuDecor === 'function') stopMenuDecor(); } catch (e) {}
+    try { if (typeof stopWaveDecor === 'function') stopWaveDecor(); } catch (e) {}
     if (loadingText) loadingText.textContent = text || 'Loading...';
     if (loadingEl) loadingEl.classList.add('show');
 }
@@ -1121,6 +1175,23 @@ if (data.pending) craftPending = data.pending;
             if (typeof data.bestWave === 'number') {
                 const bw = document.getElementById('menuBestWave');
                 if (bw) bw.textContent = data.bestWave;
+                const spb = document.getElementById('spBestWave');
+                if (spb) spb.textContent = data.bestWave;
+            }
+            // Панель достижений (правая, WAVEBORN): милстоуны 10/25/50/100.
+            {
+                const box = document.getElementById('spAchievements');
+                if (box) {
+                    const got = new Set(data.achievements || []);
+                    box.innerHTML = '';
+                    for (const m of [10, 25, 50, 100]) {
+                        const row = document.createElement('div');
+                        const done = got.has('wave' + m);
+                        row.className = 'ach-row' + (done ? ' done' : '');
+                        row.innerHTML = '<span>Reach wave ' + m + '</span><span class="ach-chip">W' + m + '</span>';
+                        box.appendChild(row);
+                    }
+                }
             }
             // Волновые достижения (2.0): золотые чипы милстоунов 10/25/50/100.
             const achBox = document.getElementById('menuAchievements');
@@ -7154,4 +7225,11 @@ function updateWaveHud(state) {
             '<span class="wr-cnt">× ' + r.count + '</span>';
         rosterEl.appendChild(chip);
     }
+}
+
+// WAVEBORN: применяем сохранённый язык UI после загрузки DOM.
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => wbSetLang(window.WB_LANG));
+} else {
+    wbSetLang(window.WB_LANG);
 }

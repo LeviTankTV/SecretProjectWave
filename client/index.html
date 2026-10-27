@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SecretProjectWave — Wave Survival</title>
-    <!-- Шрифт логотипа/заголовков (порт родителя) -->
+    <title>WAVEBORN — Wave Survival</title>
+    <!-- Шрифты WAVEBORN: Chakra Petch (угловатый дисплейный) + Share Tech Mono (данные) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&display=block" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Share+Tech+Mono&display=block" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         /* Запрет выделения текста/петалей ВЕЗДЕ (включая shift+click-перетаскивание
@@ -1777,6 +1777,298 @@
         }
         #menuTrio { bottom: 20px; }
     </style>
+
+    <style>
+        /* ---------- THEME 2.2: правые панели + чипы клавиш (стиль родителя) ---------- */
+        #menuSidePanels {
+            position: fixed; right: 16px; top: 120px; z-index: 40;
+            display: flex; flex-direction: column; gap: 12px; width: 236px;
+        }
+        .sp-card {
+            background: linear-gradient(180deg, rgba(0,0,0,0.62), rgba(0,0,0,0.46));
+            border: 1px solid rgba(255,255,255,0.11); border-radius: 14px;
+            padding: 11px 14px;
+            box-shadow: 0 4px 18px rgba(0,0,0,0.45);
+        }
+        .sp-title {
+            font-family: 'Orbitron', 'Segoe UI', sans-serif;
+            font-size: 11px; font-weight: 700; letter-spacing: 2.5px; text-transform: uppercase;
+            color: #7be0ff; margin-bottom: 8px;
+        }
+        .sp-record { display: flex; align-items: baseline; gap: 8px; }
+        .sp-record span {
+            font-family: 'Orbitron', 'Segoe UI', sans-serif;
+            font-size: 34px; font-weight: 900; color: #ffd979;
+            text-shadow: 0 0 18px rgba(255,217,121,0.4);
+        }
+        .sp-record small { color: #8a93a6; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; }
+        .sp-ach { display: flex; flex-direction: column; gap: 6px; }
+        .sp-ach .ach-row {
+            display: flex; align-items: center; justify-content: space-between;
+            font-size: 11.5px; color: #8a93a6; letter-spacing: 0.4px;
+        }
+        .sp-ach .ach-row .ach-chip {
+            font-family: 'Orbitron', 'Segoe UI', sans-serif;
+            font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 8px;
+            color: #5a6478; background: rgba(255,255,255,0.07);
+        }
+        .sp-ach .ach-row.done { color: #cfd6e4; }
+        .sp-ach .ach-row.done .ach-chip {
+            color: #1a1208; background: linear-gradient(135deg, #ffd54f, #ffb300);
+            box-shadow: 0 0 10px rgba(255,213,79,0.35);
+        }
+        .sp-tip { font-size: 11.5px; color: #9aa7c0; line-height: 1.55; }
+        .sp-tip b { color: #e8eef8; font-weight: 600; }
+
+        /* Чипы клавиш над трио */
+        #menuKb {
+            position: fixed; bottom: 96px; left: 50%; transform: translateX(-50%);
+            z-index: 59; display: flex; align-items: center; gap: 7px;
+        }
+        .kb-key {
+            font-family: 'Orbitron', 'Segoe UI', sans-serif;
+            font-size: 10.5px; font-weight: 700; color: #cfd6e4;
+            background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.16);
+            border-radius: 5px; padding: 3px 7px; min-width: 24px; text-align: center;
+            box-shadow: 0 2px 0 rgba(0,0,0,0.4);
+        }
+        .kb-key.wide { padding: 3px 10px; }
+        .kb-what { font-size: 12px; color: #8a93a6; margin-right: 3px; }
+        .kb-sep { color: #55607a; margin: 0 3px; }
+        @media (max-width: 1100px) { #menuSidePanels { display: none; } }
+    </style>
+
+
+    <!-- ================================================================
+         THEME 3.0 — WAVEBORN: неон-аркада.
+         Циан/маджента/лайм на почти чёрном, угловые панели со срезами,
+         глитч-вордмарк, PLAY, волны-осциллографы (wave_decor.js).
+         Перекрывает THEME 2.x (каскад: ниже = сильнее).
+         Опции: body.wb-no-gli (глитч off), --wb-panel-a (прозрачность).
+         ================================================================ -->
+    <style>
+        :root {
+            --wb-cyan: #00f0ff;
+            --wb-magenta: #ff2e88;
+            --wb-lime: #b6ff2e;
+            --wb-bg: #04060b;
+            --wb-panel: rgba(8, 12, 22, var(--wb-panel-a, 0.78));
+            --wb-panel-a: 0.78;
+            --wb-stroke: rgba(0, 240, 255, 0.35);
+            --wb-stroke-soft: rgba(0, 240, 255, 0.16);
+            --wb-txt: #e6f6ff;
+            --wb-dim: #7d93a8;
+            --wb-font: 'Chakra Petch', 'Segoe UI', system-ui, sans-serif;
+            --wb-mono: 'Share Tech Mono', monospace;
+        }
+        /* Тумблеры опций (настройки WAVEBORN) */
+        body.wb-no-gli .wb-logo::before, body.wb-no-gli .wb-logo::after { display: none; }
+        body.wb-no-gli .wb-logo { animation: none; }
+
+        /* ---------- Логотип: неон-вордмарк с глитчем ---------- */
+        .wb-logo {
+            font-family: var(--wb-font) !important;
+            font-size: clamp(30px, 6vh, 52px) !important;
+            font-weight: 700 !important;
+            letter-spacing: clamp(4px, 1vh, 10px) !important;
+            color: #fff !important;
+            background: none !important;
+            -webkit-background-clip: initial !important; background-clip: initial !important;
+            text-shadow:
+                0 0 6px rgba(0,240,255,0.9), 0 0 18px rgba(0,240,255,0.55),
+                0 0 42px rgba(0,240,255,0.30),
+                2px 0 0 rgba(255,46,136,0.55), -2px 0 0 rgba(0,240,255,0.55);
+            filter: none !important;
+            animation: wbFlicker 6s linear infinite;
+            position: relative;
+        }
+        /* Глитч-слои: копии текста со сдвигом и обрезкой */
+        .wb-logo::before, .wb-logo::after {
+            content: attr(data-text);
+            position: absolute; left: 0; top: 0; width: 100%;
+            text-shadow: none; pointer-events: none;
+        }
+        .wb-logo::before {
+            color: var(--wb-magenta);
+            animation: wbGlitchA 2.8s steps(1) infinite;
+            clip-path: inset(0 0 55% 0);
+        }
+        .wb-logo::after {
+            color: var(--wb-cyan);
+            animation: wbGlitchB 3.4s steps(1) infinite;
+            clip-path: inset(55% 0 0 0);
+        }
+        @keyframes wbGlitchA {
+            0%, 86%, 100% { transform: none; opacity: 0; }
+            87% { transform: translate(-3px, -1px); opacity: .8; }
+            91% { transform: translate(2px, 1px); opacity: .6; }
+            95% { transform: translate(-1px, 0); opacity: .7; }
+        }
+        @keyframes wbGlitchB {
+            0%, 84%, 100% { transform: none; opacity: 0; }
+            85% { transform: translate(3px, 1px); opacity: .75; }
+            90% { transform: translate(-2px, -1px); opacity: .55; }
+            96% { transform: translate(1px, 0); opacity: .65; }
+        }
+        @keyframes wbFlicker {
+            0%, 93%, 100% { opacity: 1; }
+            94% { opacity: .82; }
+            96% { opacity: 1; }
+            97% { opacity: .9; }
+        }
+
+        /* ---------- Общий фон и экраны ---------- */
+        body { background: var(--wb-bg); }
+        .screen {
+            background: radial-gradient(ellipse at 50% 42%,
+                rgba(6, 14, 24, 0.55) 0%, rgba(4, 8, 15, 0.85) 55%, rgba(2, 4, 9, 0.96) 100%);
+            font-family: var(--wb-font);
+        }
+        #menuDecorCanvas { opacity: 0.9; }
+        /* Осциллограф-фон виден сквозь экраны — мягкая виньетка сверху */
+        #menuVignette { background: radial-gradient(ellipse at 50% 45%, transparent 55%, rgba(0,0,0,0.6) 100%); }
+
+        /* ---------- Панели: угловые со срезом ---------- */
+        .sp-card, #lobbyOverlay .lo-col, #menuProfileCard, #onlineBox, #chatWindow {
+            background: var(--wb-panel) !important;
+            border: 1px solid var(--wb-stroke-soft) !important;
+            border-radius: 2px !important;
+            clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
+            backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+            box-shadow: inset 0 0 0 1px rgba(0,240,255,0.05), 0 8px 30px rgba(0,0,0,0.5) !important;
+        }
+        /* Неоновая линия-хребет сверху карточек */
+        .sp-card::before {
+            content: ''; position: absolute; top: 0; left: 0; right: 14px; height: 2px;
+            background: linear-gradient(90deg, var(--wb-cyan), transparent);
+            opacity: 0.7;
+        }
+        .sp-card { position: relative; }
+
+        /* ---------- Заголовки/типографика ---------- */
+        .screen h2 {
+            font-family: var(--wb-font) !important;
+            font-size: 15px !important; font-weight: 600;
+            letter-spacing: 6px !important; text-transform: uppercase;
+            color: var(--wb-cyan) !important; margin-bottom: 6px !important;
+        }
+        .sp-title {
+            font-family: var(--wb-font) !important;
+            color: var(--wb-cyan) !important;
+            letter-spacing: 3px !important;
+        }
+        .sp-record span { color: #fff !important; text-shadow: 0 0 16px rgba(0,240,255,0.6) !important; }
+        #menuProfileNick, #menuHotbarLabel, .menu-hotbar-title, .screen .hint, #menuHotbarHint {
+            font-family: var(--wb-font) !important;
+        }
+        .screen .hint, #menuHotbarHint { color: var(--wb-dim) !important; }
+        #menuKb .kb-key { font-family: var(--wb-mono) !important; color: var(--wb-cyan) !important; border-color: var(--wb-stroke-soft) !important; background: rgba(0,240,255,0.06) !important; }
+
+        /* ---------- Поля ввода ---------- */
+        .screen input[type=text], .screen input[type=password], #lobbyCodeInput {
+            font-family: var(--wb-mono) !important;
+            background: rgba(0, 20, 28, 0.6) !important;
+            border: 1px solid var(--wb-stroke-soft) !important;
+            border-radius: 2px !important;
+            clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
+            color: var(--wb-txt) !important;
+        }
+        .screen input:focus, #lobbyCodeInput:focus {
+            border-color: var(--wb-cyan) !important;
+            box-shadow: 0 0 0 1px rgba(0,240,255,0.35), 0 0 22px rgba(0,240,255,0.18) !important;
+        }
+
+        /* ---------- Кнопки ---------- */
+        .screen button {
+            font-family: var(--wb-font) !important;
+            border-radius: 2px !important;
+            clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
+        }
+        #loginBtn, #regBtn {
+            background: linear-gradient(180deg, rgba(0,240,255,0.14), rgba(0,240,255,0.05)) !important;
+            border: 1px solid var(--wb-stroke) !important;
+            color: var(--wb-cyan) !important;
+            font-weight: 600 !important; letter-spacing: 3px !important; text-transform: uppercase;
+        }
+        #loginBtn:hover, #regBtn:hover {
+            background: var(--wb-cyan) !important; color: #02131a !important;
+            box-shadow: 0 0 26px rgba(0,240,255,0.45) !important;
+        }
+        #playBtn {
+            background: linear-gradient(180deg, rgba(0,240,255,0.16), rgba(0,240,255,0.05)) !important;
+            border: 1px solid var(--wb-cyan) !important;
+            color: var(--wb-cyan) !important;
+            font-family: var(--wb-font) !important;
+            font-weight: 700; letter-spacing: 8px;
+            clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 16px 100%, 0 calc(100% - 16px));
+            box-shadow: 0 0 24px rgba(0,240,255,0.22), inset 0 0 18px rgba(0,240,255,0.08) !important;
+        }
+        #playBtn:hover {
+            background: var(--wb-cyan) !important; color: #02131a !important;
+            box-shadow: 0 0 44px rgba(0,240,255,0.55) !important;
+        }
+        #settingsBtn {
+            background: rgba(10, 16, 26, 0.8) !important;
+            border: 1px solid rgba(255,255,255,0.14) !important; color: var(--wb-txt) !important;
+        }
+        #settingsBtn:hover { border-color: var(--wb-cyan) !important; color: var(--wb-cyan) !important; }
+
+        /* Трио: неон WAVEBORN (маджента/лайм/циан уже заданы --ac inline) */
+        #menu .menuBigBtn {
+            font-family: var(--wb-font) !important;
+            background: linear-gradient(180deg, #0a0d16, #05070d) !important;
+            border-radius: 2px !important;
+            clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px));
+            border: 1px solid var(--acB) !important;
+            box-shadow: inset 0 0 14px rgba(0,0,0,0.6), inset 0 0 0 1px rgba(255,255,255,0.04) !important;
+        }
+        #menu .menuBigBtn:hover { background: linear-gradient(180deg, #0d1220, #070a12) !important; }
+
+        /* ---------- Лобби ---------- */
+        #lobbyOverlay {
+            background: radial-gradient(ellipse at 50% 40%,
+                rgba(6, 14, 24, 0.6), rgba(2, 4, 9, 0.95)) !important;
+        }
+        #lobbyOverlay button {
+            background: rgba(0, 240, 255, 0.10) !important;
+            border: 1px solid var(--wb-stroke) !important; color: var(--wb-cyan) !important;
+            border-radius: 2px !important; font-family: var(--wb-font) !important;
+            letter-spacing: 1px;
+            clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
+        }
+        #lobbyOverlay button:hover { background: var(--wb-cyan) !important; color: #02131a !important; }
+        .lc-primary { border-color: var(--wb-cyan) !important; }
+        .lc-secondary { border-color: rgba(182,255,46,0.5) !important; color: var(--wb-lime) !important; }
+        .lc-secondary:hover { background: var(--wb-lime) !important; color: #0a1002 !important; }
+        .lc-danger { border-color: rgba(255,46,136,0.5) !important; color: var(--wb-magenta) !important; }
+        .lc-danger:hover { background: var(--wb-magenta) !important; color: #1a020c !important; }
+        #lobbyCodeBig { color: var(--wb-cyan) !important; text-shadow: 0 0 18px rgba(0,240,255,0.6); font-family: var(--wb-mono) !important; }
+        #lobbyZoneRow .zone-btn.sel { box-shadow: 0 0 16px rgba(0,240,255,0.4) !important; }
+
+        /* ---------- Профиль / хотбар ---------- */
+        #menuXpFill { background: linear-gradient(90deg, var(--wb-cyan), var(--wb-lime)) !important; }
+        #menuAvatar { border-color: var(--wb-cyan) !important; box-shadow: 0 0 16px rgba(0,240,255,0.55) !important; }
+        .menu-hotbar.active { border-color: rgba(0,240,255,0.6) !important; box-shadow: 0 0 18px rgba(0,240,255,0.25) !important; }
+        .menu-hotbar:hover { border-color: rgba(0,240,255,0.4) !important; }
+        #menuBestWave { color: var(--wb-cyan) !important; }
+        #menuAchievements span { border-radius: 2px !important; }
+        .inv-slot { border-radius: 2px !important; }
+        .inv-slot:hover { border-color: var(--wb-cyan) !important; }
+
+        /* Достижения-чипы профиля и панелей — неон */
+        #menuAchievements span { color: #5a6478 !important; background: rgba(255,255,255,0.06) !important; }
+        /* Log Out — нейтральная тёмная кнопка WAVEBORN */
+        #logoutBtn {
+            background: rgba(10,16,26,0.9) !important; color: var(--wb-dim) !important;
+            border: 1px solid rgba(255,255,255,0.14) !important;
+        }
+        #logoutBtn:hover { color: var(--wb-magenta) !important; border-color: rgba(255,46,136,0.5) !important; }
+        #menuAchievements span[title="Achievement earned"] {
+            color: #02131a !important; background: var(--wb-cyan) !important;
+            box-shadow: 0 0 10px rgba(0,240,255,0.5);
+        }
+        .sp-ach .ach-row.done .ach-chip { color: #02131a !important; background: var(--wb-cyan) !important; box-shadow: 0 0 10px rgba(0,240,255,0.4); }
+    </style>
 </head>
 <body>
     <!-- Декор меню (порт родителя): летающие мобы, звёзды, виньетка, шлейф -->
@@ -1786,13 +2078,13 @@
 
     <!-- Экран входа -->
     <div id="loginScreen" class="screen active">
-        <h1>SecretProjectWave</h1>
-        <h2>Login</h2>
-        <input id="loginNick" type="text" maxlength="16" placeholder="Nick" autocomplete="off">
-        <input id="loginPass" type="password" maxlength="32" placeholder="Password" autocomplete="off">
-        <button id="loginBtn">Sign In</button>
+        <h1 class="wb-logo" data-text="WAVEBORN">WAVEBORN</h1>
+        <h2 data-wb="auth.login">Login</h2>
+        <input id="loginNick" type="text" maxlength="16" placeholder="Nick" data-wb-ph="auth.nick" autocomplete="off">
+        <input id="loginPass" type="password" maxlength="32" placeholder="Password" data-wb-ph="auth.password" autocomplete="off">
+        <button id="loginBtn" data-wb="auth.signin">Sign In</button>
         <div id="authError"></div>
-        <span class="switch-link" id="toRegister">No account? Sign up</span>
+        <span class="switch-link" id="toRegister" data-wb="auth.toRegister">No account? Sign up</span>
     </div>
 
     <!-- Экран регистрации -->
@@ -1808,7 +2100,7 @@
 
     <!-- Главное меню (после входа) -->
     <div id="menu" class="screen">
-        <h1 class="menu-home">SecretProjectWave</h1>
+        <h1 class="menu-home wb-logo" data-text="WAVEBORN">WAVEBORN</h1>
 
         <!-- Оверлей лобби (открывается кнопкой Lobby, закрытие крестиком) -->
         <div id="lobbyOverlay" style="display:none;">
@@ -1816,20 +2108,20 @@
             <!-- Выбор пати: Public / Private -->
             <div id="lobbyHome">
                 <div class="lc-row lc-between" style="width:100%;">
-                    <div class="lo-title lo-header">Lobby</div>
-                    <button id="lobbyBackBtn" title="Back to menu">✕&nbsp; Back to menu</button>
+                    <div class="lo-title lo-header" data-wb="lobby.title">Lobby</div>
+                    <button id="lobbyBackBtn" title="Back to menu" data-wb="lobby.back">✕&nbsp; Back to menu</button>
                 </div>
                 <div class="lo-cols">
                     <div class="lo-col">
-                        <div class="lo-title lo-public">Public</div>
+                        <div class="lo-title lo-public" data-wb="lobby.public">Public</div>
                         <div id="lobbyList"><div class="lc-empty">Loading games…</div></div>
-                        <button id="lobbyCreateBtn" class="lc-primary">Create Public Party</button>
+                        <button id="lobbyCreateBtn" class="lc-primary" data-wb="lobby.create">Create Public Party</button>
                     </div>
                     <div class="lo-col">
-                        <div class="lo-title lo-private">Private</div>
-                        <input id="lobbyCodeInput" maxlength="6" inputmode="numeric" placeholder="CODE">
-                        <button id="lobbyJoinBtn">Join by Code</button>
-                        <button id="lobbyCreatePrivBtn" class="lc-secondary">Create Private Party</button>
+                        <div class="lo-title lo-private" data-wb="lobby.private">Private</div>
+                        <input id="lobbyCodeInput" maxlength="6" inputmode="numeric" placeholder="CODE" data-wb-ph="lobby.code">
+                        <button id="lobbyJoinBtn" data-wb="lobby.join">Join by Code</button>
+                        <button id="lobbyCreatePrivBtn" class="lc-secondary" data-wb="lobby.createPriv">Create Private Party</button>
                     </div>
                 </div>
             </div>
@@ -1885,10 +2177,38 @@
         </div>
 
         <div class="color-row menu-home" id="colorRow"></div>
-        <button id="playBtn" class="menu-home">Lobby</button>
-        <button id="settingsBtn" class="menu-home">Settings</button>
+        <button id="playBtn" class="menu-home" data-wb="menu.play">PLAY</button>
+        <button id="settingsBtn" class="menu-home" data-wb="menu.settings">Settings</button>
         <div id="errorBox"></div>
-        <p class="hint menu-home">Controls: WASD (or Arrow keys) — move. Shift — pull shapes closer. Space — push shapes away.</p>
+        <!-- Чипы клавиш (как у родителя) -->
+        <div id="menuKb" class="menu-home">
+            <span class="kb-key">W</span><span class="kb-key">A</span><span class="kb-key">S</span><span class="kb-key">D</span><span class="kb-what">Move</span>
+            <span class="kb-sep">·</span>
+            <span class="kb-key wide">L-Shift</span><span class="kb-what">Pull</span>
+            <span class="kb-sep">·</span>
+            <span class="kb-key wide">Space</span><span class="kb-what">Push</span>
+            <span class="kb-sep">·</span>
+            <span class="kb-key">X</span><span class="kb-what">Hotbar</span>
+        </div>
+
+        <!-- Правые инфо-панели (стиль родителя): рекорды, достижения, брифинги -->
+        <div id="menuSidePanels" class="menu-home">
+            <div class="sp-card">
+                <div class="sp-title" data-wb="menu.spRecords">Wave Records</div>
+                <div class="sp-record"><span id="spBestWave">0</span><small data-wb="menu.spBest">best wave</small></div>
+            </div>
+            <div class="sp-card">
+                <div class="sp-title" data-wb="menu.spAch">Achievements</div>
+                <div class="sp-ach" id="spAchievements"></div>
+            </div>
+            <div class="sp-card">
+                <div class="sp-title" data-wb="menu.spBrief">Briefing</div>
+                <div class="sp-tip" data-wb="menu.tip5">◆ Every 5th wave — Swarm / Tanks / Hunters</div>
+                <div class="sp-tip" data-wb="menu.tip10">◆ Every 10th — <b style="color:#00f0ff">ladder boss</b> (Hexagon → Origin)</div>
+                <div class="sp-tip" data-wb="menu.tip25">◆ Every 25th — <b style="color:#ff2e88">elite variants</b></div>
+                <div class="sp-tip" data-wb="menu.tipCraft">◆ Craft 5 shapes → next rarity (grades UNIQUE..PARAGON)</div>
+            </div>
+        </div>
 
         <!-- Трио меню (порт родителя): неоновые рамки с бегущими студами -->
         <div id="menuTrio" class="menu-home">
@@ -1902,7 +2222,7 @@
             <span class="mb-label">Absorb</span>
         </button>
 
-        <button id="craftBtn" class="menuBigBtn menu-home" title="Craft (C)" style="--ac:#ffd54f; --acB:rgba(255,214,79,.5); --soft:rgba(255,214,79,.13)">
+        <button id="craftBtn" class="menuBigBtn menu-home" title="Craft (C)" style="--ac:#b6ff2e; --acB:rgba(182,255,46,.45); --soft:rgba(182,255,46,.14)">
             <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true">
                 <circle cx="12" cy="12" r="3.4"/>
                 <path d="M12 3v2.6M12 18.4V21M3 12h2.6M18.4 12H21"/>
@@ -2411,7 +2731,7 @@
     <script src="js/showcase_legacy.js?v=1"></script>
     <script src="js/showcase_designs.js?v=1"></script>
     <script src="js/audio.js?v=1"></script>
-    <script src="js/menu_decor.js?v=1"></script>
+    <script src="js/wave_decor.js?v=1"></script>
     <script src="js/main.js?v=190"></script>
     <script src="js/lobby.js?v=1"></script>
 </body>
