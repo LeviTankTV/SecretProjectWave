@@ -2275,6 +2275,42 @@
         .msg, .chat-toast { font-family: var(--wb-mono) !important; }
     </style>
 
+
+    <style>
+        /* ---------- THEME 3.3: настройки-вкладки WAVEBORN ---------- */
+        .wb-set { width: 520px !important; max-width: calc(100vw - 40px); }
+        .wb-tabs { display: flex; gap: 6px; margin: 10px 0 14px; }
+        .wb-tab {
+            flex: 1; padding: 9px 0 !important; font-family: var(--wb-font) !important;
+            font-size: 12px !important; font-weight: 600; letter-spacing: 2px;
+            background: rgba(0,240,255,0.05) !important; color: var(--wb-dim) !important;
+            border: 1px solid rgba(0,240,255,0.18) !important; cursor: pointer;
+            clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
+        }
+        .wb-tab.sel { color: var(--wb-cyan) !important; border-color: var(--wb-cyan) !important; background: rgba(0,240,255,0.12) !important; box-shadow: 0 0 14px rgba(0,240,255,0.2) !important; }
+        .wb-tabpage { display: flex; flex-direction: column; gap: 8px; min-height: 230px; }
+        .wb-opt-group {
+            font-family: var(--wb-font); font-size: 11px; font-weight: 600;
+            letter-spacing: 3px; text-transform: uppercase; color: var(--wb-magenta);
+            margin: 4px 0 2px;
+        }
+        .wb-slider { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--wb-txt); }
+        .wb-slider span { width: 110px; color: var(--wb-dim); }
+        .wb-slider b { font-family: var(--wb-mono); font-size: 12px; color: var(--wb-cyan); width: 42px; text-align: right; }
+        .wb-slider input[type=range] { flex: 1; accent-color: var(--wb-cyan); }
+        .wb-lang-row { display: flex; gap: 10px; }
+        .wb-lang-btn {
+            flex: 1; padding: 12px 0 !important; font-family: var(--wb-font) !important;
+            background: rgba(0,240,255,0.06) !important; color: var(--wb-txt) !important;
+            border: 1px solid var(--wb-stroke-soft) !important;
+            clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
+        }
+        .wb-lang-btn:hover { border-color: var(--wb-cyan) !important; color: var(--wb-cyan) !important; }
+        .wb-lang-btn.sel { background: var(--wb-cyan) !important; color: #02131a !important; }
+        /* Масштаб HUD и прозрачность (управляются JS через переменные) */
+        #playerHud, #xpBar, #gameHotbar { zoom: var(--wb-hud, 1); }
+    </style>
+
 </head>
 <body>
     <!-- Декор меню (порт родителя): летающие мобы, звёзды, виньетка, шлейф -->
@@ -2473,20 +2509,57 @@
         </div>
     </div>
 
-    <!-- Настройки -->
+    <!-- Настройки WAVEBORN: вкладки GAME / UI / LANGUAGE / DEBUG -->
     <div id="settingsPanel" class="overlay">
-        <div class="set-box">
-            <h2>Settings</h2>
-            <label class="set-row"><input type="checkbox" id="setGrid"> Grid — show grid on the field</label>
-            <label class="set-row"><input type="checkbox" id="setMouse"> Mouse control — move toward cursor</label>
-            <label class="set-row"><input type="checkbox" id="setZone"> Zone label — show which zone you are in</label>
-            <label class="set-row"><input type="checkbox" id="setMinimap"> Minimap — show in the corner of the screen</label>
-            <label class="set-row"><input type="checkbox" id="setHitMobs"> Mob hitboxes — show mob hitboxes</label>
-            <label class="set-row"><input type="checkbox" id="setHitBossPetals"> Boss shape hitboxes — show boss shape hitboxes</label>
-            <label class="set-row"><input type="checkbox" id="setHitPlayerPetals"> Player shape hitboxes — show player shape hitboxes</label>
-            <label class="set-row"><input type="checkbox" id="setHitPlayers"> Player hitboxes — show player hitboxes</label>
-            <p class="set-note">If «Mouse control» is off — movement on WASD or Arrow keys (default).</p>
-            <button id="settingsCloseBtn">Done</button>
+        <div class="set-box wb-set">
+            <h2 data-wb="set.title">Settings</h2>
+            <div class="wb-tabs">
+                <button class="wb-tab sel" data-tab="game" data-wb="set.game">GAME</button>
+                <button class="wb-tab" data-tab="ui" data-wb="set.ui">UI</button>
+                <button class="wb-tab" data-tab="lang" data-wb="set.lang">LANGUAGE</button>
+                <button class="wb-tab" data-tab="debug" data-wb="set.debug">DEBUG</button>
+            </div>
+
+            <div class="wb-tabpage" data-page="game">
+                <div class="wb-opt-group" data-wb="set.sound">Sound mixer</div>
+                <label class="wb-slider"><span>Master</span><input type="range" id="wbMixMaster" min="0" max="100" value="80"><b id="wbMixMasterV">80</b></label>
+                <label class="wb-slider"><span>Music</span><input type="range" id="wbMixMusic" min="0" max="100" value="55"><b id="wbMixMusicV">55</b></label>
+                <label class="wb-slider"><span>SFX</span><input type="range" id="wbMixSfx" min="0" max="100" value="90"><b id="wbMixSfxV">90</b></label>
+                <label class="wb-slider"><span>UI</span><input type="range" id="wbMixUi" min="0" max="100" value="50"><b id="wbMixUiV">50</b></label>
+            </div>
+
+            <div class="wb-tabpage" data-page="ui" style="display:none;">
+                <div class="wb-opt-group" data-wb="set.hud">HUD</div>
+                <label class="wb-slider"><span data-wb="set.hudScale">HUD scale</span><input type="range" id="wbHudScale" min="70" max="150" value="100"><b id="wbHudScaleV">100%</b></label>
+                <label class="wb-slider"><span data-wb="set.panelsA">Panel opacity</span><input type="range" id="wbPanelsA" min="35" max="100" value="80"><b id="wbPanelsAV">80%</b></label>
+                <div class="wb-opt-group" data-wb="set.fx">Effects &amp; notifications</div>
+                <label class="set-row"><input type="checkbox" id="wbNoBanner"> <span data-wb="set.noBanner">Disable wave banners</span></label>
+                <label class="set-row"><input type="checkbox" id="wbNoToasts"> <span data-wb="set.noToasts">Disable pickup toasts</span></label>
+                <label class="set-row"><input type="checkbox" id="wbNoGli"> <span data-wb="set.noGli">Disable glitch effects</span></label>
+            </div>
+
+            <div class="wb-tabpage" data-page="lang" style="display:none;">
+                <div class="wb-opt-group" data-wb="set.langPick">Interface language</div>
+                <div class="wb-lang-row">
+                    <button id="wbLangEn" class="wb-lang-btn">English</button>
+                    <button id="wbLangRu" class="wb-lang-btn">Русский</button>
+                </div>
+                <p class="set-note" data-wb="set.langNote">Saved in this browser.</p>
+            </div>
+
+            <div class="wb-tabpage" data-page="debug" style="display:none;">
+                <label class="set-row"><input type="checkbox" id="setGrid"> Grid — show grid on the field</label>
+                <label class="set-row"><input type="checkbox" id="setMouse"> Mouse control — move toward cursor</label>
+                <label class="set-row"><input type="checkbox" id="setZone"> Zone label — show which zone you are in</label>
+                <label class="set-row"><input type="checkbox" id="setMinimap"> Minimap — show in the corner of the screen</label>
+                <label class="set-row"><input type="checkbox" id="setHitMobs"> Mob hitboxes</label>
+                <label class="set-row"><input type="checkbox" id="setHitBossPetals"> Boss shape hitboxes</label>
+                <label class="set-row"><input type="checkbox" id="setHitPlayerPetals"> Player shape hitboxes</label>
+                <label class="set-row"><input type="checkbox" id="setHitPlayers"> Player hitboxes</label>
+                <p class="set-note">If «Mouse control» is off — movement on WASD or Arrow keys (default).</p>
+            </div>
+
+            <button id="settingsCloseBtn" data-wb="set.done">Done</button>
         </div>
     </div>
 

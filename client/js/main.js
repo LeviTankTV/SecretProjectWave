@@ -248,6 +248,22 @@ const WB_I18N = {
     'wave.swarm':           { en: 'SWARM — many small fast mobs', ru: 'РОЙ — много мелких быстрых мобов' },
     'wave.tanks':           { en: 'TANKS — heavy high-rarity mobs', ru: 'ТАНКИ — тяжёлые редкие мобы' },
     'wave.hunters':         { en: 'HUNTERS — aggressive chasers', ru: 'ОХОТНИКИ — агрессивные преследователи' },
+    'set.title':            { en: 'Settings', ru: 'НАСТРОЙКИ' },
+    'set.game':             { en: 'GAME', ru: 'ИГРА' },
+    'set.ui':               { en: 'UI', ru: 'ИНТЕРФЕЙС' },
+    'set.lang':             { en: 'LANGUAGE', ru: 'ЯЗЫК' },
+    'set.debug':            { en: 'DEBUG', ru: 'ОТЛАДКА' },
+    'set.sound':            { en: 'Sound mixer', ru: 'Микшер звука' },
+    'set.hud':              { en: 'HUD', ru: 'Интерфейс боя' },
+    'set.hudScale':         { en: 'HUD scale', ru: 'Масштаб HUD' },
+    'set.panelsA':          { en: 'Panel opacity', ru: 'Прозрачность панелей' },
+    'set.fx':               { en: 'Effects & notifications', ru: 'Эффекты и уведомления' },
+    'set.noBanner':         { en: 'Disable wave banners', ru: 'Отключить баннеры волн' },
+    'set.noToasts':         { en: 'Disable pickup toasts', ru: 'Отключить тосты подбора' },
+    'set.noGli':            { en: 'Disable glitch effects', ru: 'Отключить глитч-эффекты' },
+    'set.langPick':         { en: 'Interface language', ru: 'Язык интерфейса' },
+    'set.langNote':         { en: 'Saved in this browser.', ru: 'Сохраняется в этом браузере.' },
+    'set.done':             { en: 'Done', ru: 'Готово' },
 };
 window.tr = function (key) {
     const row = WB_I18N[key];
@@ -2234,7 +2250,9 @@ function connect() {
                 break;
             case 'pickedUp':
                 sfx('pickup');
-                pushToast('pickup', `+ ${kindName(msg.kind)} ${msg.rarity || ''}`);
+                if (!window.WB_UI.noToasts) {
+                    pushToast('pickup', `+ ${kindName(msg.kind)} ${msg.rarity || ''}`);
+                }
                 break;
             case 'sys':
                 addSystemToast(msg.text || '', msg.kind || '');
@@ -7248,9 +7266,114 @@ function updateWaveHud(state) {
     }
 }
 
-// WAVEBORN: применяем сохранённый язык UI после загрузки DOM.
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => wbSetLang(window.WB_LANG));
-} else {
+// ===== WAVEBORN UI-опции: масштаб HUD, прозрачность, уведомления, глитч =====
+const WB_UI_KEY = 'wbUi';
+window.WB_UI = Object.assign(
+    { hudScale: 100, panelsA: 80, noBanner: false, noToasts: false, noGli: false },
+    JSON.parse(localStorage.getItem(WB_UI_KEY) || '{}')
+);
+function wbApplyUI() {
+    const u = window.WB_UI;
+    document.documentElement.style.setProperty('--wb-hud', (u.hudScale / 100).toFixed(2));
+    document.documentElement.style.setProperty('--wb-panel-a', (u.panelsA / 100).toFixed(2));
+    document.body.classList.toggle('wb-no-gli', !!u.noGli);
+    window.WB_GLI = !u.noGli;
+    localStorage.setItem(WB_UI_KEY, JSON.stringify(u));
+}
+
+// WAVEBORN: применяем сохранённые язык и UI-опции после загрузки DOM.
+function wbBootSettings() {
     wbSetLang(window.WB_LANG);
+    wbApplyUI();
+
+    // Вкладки
+    document.querySelectorAll('.wb-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            document.querySelectorAll('.wb-tab').forEach(t => t.classList.toggle('sel', t === tab));
+            document.querySelectorAll('.wb-tabpage').forEach(pg => {
+                pg.style.display = (pg.dataset.page === tab.dataset.tab) ? 'flex' : 'none';
+            });
+        });
+    });
+
+    // Микшер (audio.js, сохранение в localStorage)
+    const MIX_KEY = 'wbMix';
+    const mix = Object.assign({ master: 0.8, music: 0.55, sfx: 0.9, ui: 0.5 },
+        JSON.parse(localStorage.getItem(MIX_KEY) || '{}'));
+    const applyMix = () => {
+        try { if (window.GameAudio) window.GameAudio.setMix(mix); } catch (e) {}
+        localStorage.setItem(MIX_KEY, JSON.stringify(mix));
+    };
+    const bindMix = (id, key) => {
+        const el = document.getElementById(id);
+        const val = document.getElementById(id + 'V');
+        if (!el) return;
+        el.value = Math.round(mix[key] * 100);
+        if (val) val.textContent = el.value;
+        el.addEventListener('input', () => {
+            mix[key] = el.value / 100;
+            if (val) val.textContent = el.value;
+            applyMix();
+        });
+    };
+    bindMix('wbMixMaster', 'master');
+    bindMix('wbMixMusic', 'music');
+    bindMix('wbMixSfx', 'sfx');
+    bindMix('wbMixUi', 'ui');
+    applyMix();
+
+    // Масштаб HUD
+    const hs = document.getElementById('wbHudScale');
+    if (hs) {
+        hs.value = window.WB_UI.hudScale;
+        const v = document.getElementById('wbHudScaleV');
+        if (v) v.textContent = hs.value + '%';
+        hs.addEventListener('input', () => {
+            window.WB_UI.hudScale = +hs.value;
+            if (v) v.textContent = hs.value + '%';
+            wbApplyUI();
+        });
+    }
+    // Прозрачность панелей
+    const pa = document.getElementById('wbPanelsA');
+    if (pa) {
+        pa.value = window.WB_UI.panelsA;
+        const v = document.getElementById('wbPanelsAV');
+        if (v) v.textContent = pa.value + '%';
+        pa.addEventListener('input', () => {
+            window.WB_UI.panelsA = +pa.value;
+            if (v) v.textContent = pa.value + '%';
+            wbApplyUI();
+        });
+    }
+    // Тумблеры
+    const bindToggle = (id, key) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.checked = !!window.WB_UI[key];
+        el.addEventListener('change', () => {
+            window.WB_UI[key] = el.checked;
+            wbApplyUI();
+        });
+    };
+    bindToggle('wbNoBanner', 'noBanner');
+    bindToggle('wbNoToasts', 'noToasts');
+    bindToggle('wbNoGli', 'noGli');
+
+    // Язык
+    const markLang = () => {
+        const en = document.getElementById('wbLangEn'), ru = document.getElementById('wbLangRu');
+        if (en) en.classList.toggle('sel', window.WB_LANG === 'en');
+        if (ru) ru.classList.toggle('sel', window.WB_LANG === 'ru');
+    };
+    const en = document.getElementById('wbLangEn'), ru = document.getElementById('wbLangRu');
+    if (en) en.addEventListener('click', () => { wbSetLang('en'); markLang(); });
+    if (ru) ru.addEventListener('click', () => { wbSetLang('ru'); markLang(); });
+    markLang();
+    document.addEventListener('wb:lang', markLang);
+}
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', wbBootSettings);
+} else {
+    wbBootSettings();
 }

@@ -748,6 +748,8 @@ lobbyStartBtn.addEventListener('click', () => lobbyApiBusy(lobbyStartBtn, async 
 
 // --- UI волн ---
 function showWaveBanner(main, sub, ms) {
+    // WAVEBORN: баннеры можно отключить в настройках (UI).
+    if (window.WB_UI && window.WB_UI.noBanner) return;
     waveBannerMain.textContent = main;
     waveBannerSub.textContent = sub || '';
     waveBannerEl.style.display = 'block';
