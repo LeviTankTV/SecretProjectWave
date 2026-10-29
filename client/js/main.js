@@ -311,6 +311,13 @@ function showScreen(name) {
         if (roster) roster.innerHTML = '';
     }
     syncTicker();
+    // WAVEBORN: процедурная музыка меню (audio.js mood-система).
+    try {
+        if (window.GameAudio) {
+            if (name === 'menu' || name === 'login' || name === 'register') window.GameAudio.mood('menu');
+            else window.GameAudio.mood('off');
+        }
+    } catch (e) {}
     // Фон WAVEBORN: волны-осциллографы на экранах меню, стоп в игре.
     try {
         if (typeof startWaveDecor === 'function') {
@@ -448,12 +455,47 @@ function buildHotbarSlotLite(bar, i, it) {
 }
 
 // ----- Плавный переход на чёрный экран "Loading..." -----
+const WB_TIPS = [
+    'Every 5th wave — Swarm / Tanks / Hunters. Every 10th — BOSS.',
+    'Golden mobs drop x10 loot. Ring/Star/Crescent boost drop rarity.',
+    'Craft 5 same shapes → next rarity. Grades: UNIQUE → PARAGON.',
+    'Absorb spare petals for XP — the price is capped, no exploit.',
+    'Hexagon+ crafts have a damage floor — no weak crafts.',
+    'Click a mob card in the roster to highlight it on the arena.',
+];
+var wbTipTimer = 0, wbTipIdx = 0;
 function showLoading(text) {
     try { if (typeof stopWaveDecor === 'function') stopWaveDecor(); } catch (e) {}
+    // WAVEBORN: лого + советы на экране загрузки.
+    try {
+        const el = document.getElementById('loading');
+        if (el && !el.querySelector('.wb-load-logo')) {
+            const logo = document.createElement('div');
+            logo.className = 'wb-load-logo';
+            logo.textContent = 'WAVEBORN';
+            const bar = document.createElement('div');
+            bar.className = 'wb-load-bar';
+            bar.innerHTML = '<i></i>';
+            const tip = document.createElement('div');
+            tip.className = 'wb-load-tip';
+            el.appendChild(logo);
+            el.appendChild(bar);
+            el.appendChild(tip);
+            wbTipIdx = Math.floor(Math.random() * WB_TIPS.length);
+            tip.textContent = WB_TIPS[wbTipIdx % WB_TIPS.length];
+            wbTipTimer = setInterval(() => {
+                wbTipIdx++;
+                tip.textContent = WB_TIPS[wbTipIdx % WB_TIPS.length];
+            }, 2600);
+        }
+        const lt = document.getElementById('loadingText');
+        if (lt) lt.style.display = 'none';
+    } catch (e) {}
     if (loadingText) loadingText.textContent = text || 'Loading...';
     if (loadingEl) loadingEl.classList.add('show');
 }
 function hideLoading() {
+    try { if (wbTipTimer) { clearInterval(wbTipTimer); wbTipTimer = 0; } } catch (e) {}
     if (loadingEl) loadingEl.classList.remove('show');
 }
 

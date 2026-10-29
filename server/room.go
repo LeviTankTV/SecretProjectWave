@@ -2295,6 +2295,7 @@ func (r *Room) awardMobKill(m *Mob) {
 		"type": "mobDied", "id": m.ID,
 		"x": m.X, "y": m.Y, "size": m.Radius,
 		"shape": mt.Shape, "color": diedColor,
+		"killer": m.KillerID, // WAVEBORN: для мультикилл-объявлений
 	}
 	msg, _ := json.Marshal(died)
 	for _, c := range r.clients {
@@ -2428,7 +2429,13 @@ func (r *Room) fightMobsVsPlayers(dt float64) {
 					p.State.HP = 0
 					p.Dead = true
 					if cl := r.clients[p.State.ID]; cl != nil {
-						cl.deliver([]byte(`{"type":"died"}`))
+						// WAVEBORN: died с данными убийцы (карточка в рекапе).
+						died, _ := json.Marshal(map[string]interface{}{
+							"type": "died",
+							"killerType": m.Type, "killerRarity": m.Rarity,
+							"killerVariant": m.Variant, "killerName": mobTypes[m.Type].Name,
+						})
+						cl.deliver(died)
 					}
 				}
 				break

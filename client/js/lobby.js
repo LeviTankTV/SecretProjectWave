@@ -924,6 +924,7 @@ function resetDeathToWaveDefaults() {
     if (deathSub) deathSub.style.display = 'none';
     if (deathWaveLine) deathWaveLine.style.display = 'none';
     // WAVEBORN: рекап прячем, простой экран возвращаем.
+    window.__wbKiller = null;
     const rec = document.getElementById('wbRecap');
     const sim = document.getElementById('wbDeathSimple');
     if (rec) rec.style.display = 'none';
@@ -959,6 +960,10 @@ function handleWaveMsg(msg) {
             const sub = (window.tr && skey) ? window.tr(skey) : (specialNames[msg.special] || 'Clear all mobs');
             showWaveBanner('Wave ' + msg.num, sub, 3500);
             window.__wbBossGlow = (msg.special === 'boss');
+            // WAVEBORN: титул зоны на первой волне матча.
+            if (msg.num === 1 && typeof wbShowZoneTitle === 'function') {
+                try { wbShowZoneTitle(typeof myZone === 'number' ? myZone : 0); } catch (e) {}
+            }
             // Звук (audio.js): босс-волна — «открытие врат», обычная — UI-акцент.
             try {
                 if (window.GameAudio) {
@@ -1013,6 +1018,21 @@ function handleWaveMsg(msg) {
                 const lbl = recap.querySelector('.wb-recap-label');
                 if (lbl && window.tr) {
                     lbl.textContent = isNewBest ? window.tr('death.newBest') : window.tr('death.wiped');
+                }
+                // WAVEBORN: карточка убийцы (кто добил).
+                const kb = recap.querySelector('.wb-killer');
+                if (kb) {
+                    const k = window.__wbKiller;
+                    if (k && k.type) {
+                        const kcol = rarityColors[Math.min(k.rarity || 0, rarityColors.length - 1)];
+                        kb.innerHTML = '<span class="wb-killer-by">Slain by</span>' +
+                            '<b style="color:' + kcol + '">' + escapeHtml((k.variant ? k.variant + ' ' : '') + k.name) + '</b>' +
+                            '<span class="wb-killer-rar" style="border-color:' + kcol + ';color:' + kcol + '">' +
+                            (rarityName ? rarityName(k.rarity) : k.rarity) + '</span>';
+                        kb.style.display = 'flex';
+                    } else {
+                        kb.style.display = 'none';
+                    }
                 }
             }
             break;

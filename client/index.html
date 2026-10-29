@@ -2355,6 +2355,81 @@
         @media (max-height: 820px) { #menuSidePanels .sp-card:nth-child(n+5) { display: none; } }
     </style>
 
+
+    <style>
+        /* ---------- RICHNESS Н5: кинематограф ---------- */
+        .wb-mk {
+            font-family: var(--wb-font); font-size: 44px; font-weight: 700;
+            letter-spacing: 8px; color: #fff; text-transform: uppercase;
+            text-shadow: 0 0 16px rgba(0,240,255,0.8), 3px 0 0 rgba(255,46,136,0.5), -3px 0 0 rgba(0,240,255,0.5);
+            animation: wbBannerIn .3s cubic-bezier(.2,.9,.3,1.3);
+        }
+        #wbMultikill, #wbBossIntro, #wbZoneTitle {
+            position: fixed; inset: 0; z-index: 240; pointer-events: none;
+            display: none; align-items: center; justify-content: center; flex-direction: column;
+        }
+        .wb-bi-label {
+            font-family: var(--wb-mono); font-size: 15px; letter-spacing: 8px;
+            color: var(--wb-magenta); text-transform: uppercase;
+        }
+        .wb-bi-name {
+            font-family: var(--wb-font); font-size: clamp(40px, 9vh, 84px);
+            font-weight: 700; letter-spacing: 4px; margin: 8px 0;
+            animation: wbBannerIn .4s cubic-bezier(.2,.9,.3,1.2);
+        }
+        .wb-bi-sub {
+            font-family: var(--wb-mono); font-size: 13px; letter-spacing: 5px;
+            color: var(--wb-dim); text-transform: uppercase;
+        }
+        .wb-zt {
+            font-family: var(--wb-font); font-size: clamp(52px, 11vh, 100px);
+            font-weight: 700; letter-spacing: 12px; text-transform: uppercase;
+            color: #fff; text-shadow: 0 0 30px rgba(255,255,255,0.4), 0 6px 40px rgba(0,0,0,0.6);
+            animation: wbBannerIn .5s cubic-bezier(.2,.9,.3,1.15);
+        }
+        .wb-killer {
+            display: flex; align-items: center; gap: 10px; margin-top: 4px;
+        }
+        .wb-killer-by {
+            font-family: var(--wb-mono); font-size: 11px; letter-spacing: 2px;
+            color: var(--wb-dim); text-transform: uppercase;
+        }
+        .wb-killer b {
+            font-family: var(--wb-font); font-size: 15px; font-weight: 600;
+            letter-spacing: 1px; text-transform: uppercase;
+        }
+        .wb-killer-rar {
+            font-family: var(--wb-mono); font-size: 10.5px; letter-spacing: 1px;
+            border: 1px solid; border-radius: 6px; padding: 2px 8px;
+        }
+        /* Экран загрузки WAVEBORN: лого + советы */
+        #loading { flex-direction: column; }
+        #loading .wb-load-logo {
+            font-family: var(--wb-font); font-size: 34px; font-weight: 700;
+            letter-spacing: 10px; color: #fff; text-transform: uppercase;
+            text-shadow: 0 0 14px rgba(0,240,255,0.8), 2px 0 0 rgba(255,46,136,0.5);
+            margin-bottom: 18px;
+        }
+        #loading .wb-load-tip {
+            font-family: var(--wb-mono); font-size: 13px; letter-spacing: 1px;
+            color: var(--wb-dim); max-width: 560px; text-align: center; margin-top: 14px;
+            min-height: 18px;
+        }
+        #loading .wb-load-bar {
+            width: 300px; height: 4px; background: rgba(255,255,255,0.10);
+            border-radius: 3px; overflow: hidden;
+        }
+        #loading .wb-load-bar i {
+            display: block; height: 100%; width: 40%;
+            background: linear-gradient(90deg, var(--wb-cyan), var(--wb-lime));
+            animation: wbLoad 1.1s ease-in-out infinite;
+        }
+        @keyframes wbLoad {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(320%); }
+        }
+    </style>
+
 </head>
 <body>
     <!-- Декор меню (порт родителя): летающие мобы, звёзды, виньетка, шлейф -->
@@ -3052,6 +3127,7 @@
                 <div class="wb-rs"><span id="wbRecapTime">0:00</span><small data-wb="death.time">run time</small></div>
                 <div class="wb-rs"><span id="wbRecapBest">0</span><small data-wb="death.best">best</small></div>
             </div>
+            <div class="wb-killer" style="display:none;"></div>
             <div class="btn-group">
                 <button id="wbRetryBtn" data-wb="death.retry">RETRY</button>
                 <button id="menuBtn2" onclick="document.getElementById("menuBtn").click()">Return to Main Menu</button>
