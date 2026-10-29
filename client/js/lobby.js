@@ -825,6 +825,7 @@ function handleWaveMsg(msg) {
             const skey = waveSpecialKey(msg.special);
             const sub = (window.tr && skey) ? window.tr(skey) : (specialNames[msg.special] || 'Clear all mobs');
             showWaveBanner('Wave ' + msg.num, sub, 3500);
+            window.__wbBossGlow = (msg.special === 'boss');
             // Звук (audio.js): босс-волна — «открытие врат», обычная — UI-акцент.
             try {
                 if (window.GameAudio) {
@@ -837,6 +838,7 @@ function handleWaveMsg(msg) {
             break;
         }
         case 'clear':
+            window.__wbBossGlow = false;
             if (window.__wbRun.waveStartTs) {
                 window.__wbRun.t += (Date.now() - window.__wbRun.waveStartTs) / 1000;
                 window.__wbRun.waveStartTs = 0;
