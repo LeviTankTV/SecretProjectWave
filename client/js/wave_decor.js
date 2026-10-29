@@ -103,7 +103,7 @@
         ctx.clearRect(0, 0, W, H);
 
         // Силуэты мобов (за звёздами).
-        drawSilhouettes(dt);
+        drawSilhouettes(dtMs / 1000);
 
         // Звёзды-точки с мерцанием
         for (const s of stars) {

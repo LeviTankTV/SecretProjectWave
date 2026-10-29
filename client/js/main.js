@@ -7722,8 +7722,12 @@ function wbMenuHeroStart() {
         _heroPetals.push(pg);
     }
     let t = Math.random() * 10;
-    _heroApp.ticker.add(() => {
-        const dt = _heroApp.ticker.deltaMS / 1000;
+    // WAVEBORN fix: локальная ссылка + guard — после destroy() приложения
+    // отложенный тик читал ._heroApp.ticker у null (спам TypeError).
+    const heroApp = _heroApp;
+    heroApp.ticker.add(() => {
+        if (_heroApp !== heroApp) return; // приложение уничтожено/пересоздано
+        const dt = heroApp.ticker.deltaMS / 1000;
         t += dt;
         c.y = 62 + Math.sin(t * 1.4) * 4; // левитация
         c.rotation = Math.sin(t * 0.8) * 0.05;
