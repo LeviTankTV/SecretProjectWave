@@ -726,6 +726,12 @@ lobbyCodeInput.addEventListener('keydown', (e) => {
 });
 lobbyLeaveBtn.addEventListener('click', () => lobbyApiBusy(lobbyLeaveBtn, async () => {
     lobbyWasInParty = false; // свой выход — без «пати распалось»
+    // WAVEBORN fix: выход из лобби гасит отсчёт старта — иначе таймер
+    // телепортировал вышедшего игрока в матч (баг репорта 2).
+    stopStartCountdown();
+    lobbyMatchStarted = false;
+    gameStarted = false;
+    window.__wbBossGlow = false;
     await apiCall('/api/lobby-leave', { token: authToken });
     setLobbyCode('');
     refreshLobbyInfo();
@@ -779,7 +785,9 @@ function showStartCountdown(secs) {
         if (left <= 0) {
             stopStartCountdown();
             // Все игроки автоматически заспавнятся посередине карты.
-            if (!gameStarted && lobbyMatchStarted && typeof enterArena === 'function') {
+            // Страховка: вышедший из лобби (код пуст) не телепортируется.
+            if (!gameStarted && lobbyMatchStarted && getLobbyCode() &&
+                typeof enterArena === 'function') {
                 enterArena();
             }
             return;
