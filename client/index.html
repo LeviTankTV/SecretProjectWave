@@ -1167,7 +1167,7 @@
         /* Фоновый слой с тематическими мобами биома (весь экран, позади контента) */
         #lobbyDecorCanvas {
             position: absolute; inset: 0; width: 100%; height: 100%;
-            pointer-events: none; opacity: 0.55;
+            pointer-events: none; opacity: 1; /* яркость биома — решение игрока */
         }
         #lobbyOverlay > *:not(#lobbyDecorCanvas) { position: relative; z-index: 2; }
         /* Онлайн-счётчик скрывается на экране лобби */

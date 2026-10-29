@@ -521,40 +521,48 @@ function resetLobbyDecor() {
     if (lobbyDecorApp) { lobbyDecorApp.stage.removeChildren(); lobbyDecorMobs = []; }
 }
 
-// WAVEBORN (RICHNESS Н3): биомный фон лобби — рисуется на PIXI-стейдж
-// декора ПОД мобами: градиент зоны, гекс-сетка, пропсы, виньетка.
-// Перерисовывается при смене зоны (startLobbyDecor).
+// WAVEBORN (RICHNESS Н3/графика): биомный фон лобби — ЯРКИЙ РАВНОМЕРНЫЙ
+// цвет зоны (решение игрока: «яркий сочный», «равномерный», канвас opacity 1),
+// светлые пропсы-объекты читаются на фоне, дышащий свет (±10%).
 let lobbyBiomeLayer = null;
+let lobbyBiomeGlow = null;
 let lobbyBiomeZone = -1;
 function paintLobbyBiome(zone) {
     try { ensureLobbyDecorApp(); } catch (e) { return; }
     if (!lobbyDecorApp) return;
     if (lobbyBiomeZone === zone && lobbyBiomeLayer) return;
     lobbyBiomeZone = zone;
-    if (lobbyBiomeLayer) { lobbyDecorApp.stage.removeChild(lobbyBiomeLayer); lobbyBiomeLayer.destroy({ children: true }); }
+    if (lobbyBiomeLayer) {
+        lobbyDecorApp.stage.removeChild(lobbyBiomeLayer);
+        try { lobbyBiomeLayer.destroy({ children: true }); } catch (e) {}
+        lobbyBiomeLayer = null;
+    }
     const z = arenaZones[zone] || arenaZones[0];
     const col = (typeof z.color === 'number') ? z.color : parseInt(String(z.color).replace('#', ''), 16) || 0x2ecc71;
     const W = window.innerWidth, H = window.innerHeight;
     const layer = new PIXI.Container();
-    // Градиент: свет в центре экрана, темнее к краям (как арена).
-    const light = lerpHex(col, 0xffffff, 0.38);
-    const dark = shade(col, -52);
-    const steps = 20;
-    for (let i = steps; i >= 0; i--) {
-        const t = i / steps;
-        layer.addChild((() => {
-            const g = new PIXI.Graphics();
-            g.beginFill(lerpHex3(light, col, dark, t), 0.95);
-            const rr = Math.max(W, H) * (0.10 + 0.95 * t);
-            g.drawCircle(W / 2, H * 0.42, rr);
-            g.endFill();
-            return g;
-        })());
+
+    // РАВНОМЕРНАЯ насыщенная база: цвет зоны, чуть поднятый к белому.
+    const base = new PIXI.Graphics();
+    base.beginFill(lerpHex(col, 0xffffff, 0.16), 1);
+    base.drawRect(0, 0, W, H);
+    base.endFill();
+    layer.addChild(base);
+
+    // Дышащий свет: мягкое световое пятно в центре, альфа тикает в ticker.
+    lobbyBiomeGlow = new PIXI.Graphics();
+    const glowR = Math.max(W, H) * 0.55;
+    for (let i = 8; i >= 0; i--) {
+        lobbyBiomeGlow.beginFill(0xffffff, 0.028);
+        lobbyBiomeGlow.drawCircle(W / 2, H * 0.45, glowR * (i + 1) / 9);
+        lobbyBiomeGlow.endFill();
     }
-    // Гекс-сетка (тонкие соты по всему экрану).
+    layer.addChild(lobbyBiomeGlow);
+
+    // Гекс-сетка: едва заметная фактура.
     const hex = new PIXI.Graphics();
     const HR = 46, rowH = HR * 1.5, colW = HR * Math.sqrt(3);
-    hex.lineStyle(1, 0xffffff, 0.04);
+    hex.lineStyle(1, 0xffffff, 0.035);
     const rows = Math.ceil(H / rowH) + 2, cols = Math.ceil(W / colW) + 2;
     for (let ry = -1; ry <= rows; ry++) {
         for (let cx = -1; cx <= cols; cx++) {
@@ -569,29 +577,31 @@ function paintLobbyBiome(zone) {
     }
     hex.lineStyle(0);
     layer.addChild(hex);
-    // Пропсы биома: 10-16 кристаллов/обломков/ростриков, сид на зону.
+
+    // Пропсы: СВЕТЛЫЕ объекты (ярче фона, с тёмной обводкой) — как грибы у florr.
     const rng = mulberry32(1000 + zone * 7919);
     const props = new PIXI.Graphics();
-    const n = 10 + Math.floor(rng() * 7);
+    const n = 12 + Math.floor(rng() * 6);
     for (let i = 0; i < n; i++) {
-        const px = rng() * W, py = H * 0.35 + rng() * H * 0.6;
-        const sz = 20 + rng() * 36;
-        const tone = shade(col, -30 - Math.floor(rng() * 25));
+        const px = rng() * W, py = H * 0.3 + rng() * H * 0.65;
+        const sz = 20 + rng() * 34;
+        const tone = lerpHex(col, 0xffffff, 0.24 + rng() * 0.18);
+        const edge = shade(col, -30);
         const kind = rng();
         if (kind < 0.45) {
-            props.beginFill(tone, 0.8);
+            props.beginFill(tone, 0.92);
             props.moveTo(px, py - sz);
             props.lineTo(px + sz * 0.55, py);
             props.lineTo(px, py + sz * 0.8);
             props.lineTo(px - sz * 0.55, py);
             props.closePath();
             props.endFill();
-            props.lineStyle(1.5, lerpHex(tone, 0xffffff, 0.35), 0.45);
+            props.lineStyle(2.5, edge, 0.85);
             props.moveTo(px, py - sz);
             props.lineTo(px, py + sz * 0.8);
             props.lineStyle(0);
         } else if (kind < 0.8) {
-            props.beginFill(tone, 0.75);
+            props.beginFill(tone, 0.92);
             const sides = 5 + Math.floor(rng() * 3);
             for (let k = 0; k <= sides; k++) {
                 const a2 = (k / sides) * Math.PI * 2;
@@ -600,27 +610,37 @@ function paintLobbyBiome(zone) {
                 if (k === 0) props.moveTo(vx, vy); else props.lineTo(vx, vy);
             }
             props.endFill();
+            props.lineStyle(2, edge, 0.6);
+            props.drawCircle(px, py, sz * 0.5);
+            props.lineStyle(0);
         } else {
-            props.lineStyle(3, tone, 0.85);
+            props.lineStyle(4, edge, 0.8);
             props.moveTo(px, py + sz * 0.5);
             props.lineTo(px + sz * 0.15, py - sz * 0.5);
             props.lineStyle(0);
-            props.beginFill(lerpHex(tone, 0xffffff, 0.3), 0.85);
-            props.drawCircle(px + sz * 0.15, py - sz * 0.5, 4);
+            props.beginFill(lerpHex(tone, 0xffffff, 0.4), 1);
+            props.drawCircle(px + sz * 0.15, py - sz * 0.5, 5);
             props.endFill();
         }
     }
     layer.addChild(props);
-    // Виньетка.
-    const vin = new PIXI.Graphics();
-    for (let i = 0; i < 8; i++) {
-        vin.beginFill(0x000000, 0.04);
-        vin.drawCircle(W / 2, H / 2, Math.max(W, H) * (0.55 + 0.06 * i));
-        vin.endFill();
-    }
-    layer.addChild(vin);
+    // Лёгкое покачивание слоя пропсов (дыхание).
+    props.pivot.set(W / 2, H / 2);
+    props.position.set(W / 2, H / 2);
+    layer._props = props;
+
     lobbyBiomeLayer = layer;
     lobbyDecorApp.stage.addChildAt(layer, 0);
+}
+
+// Дыхание света + покачивание пропсов (в тикере декора).
+function tickLobbyBiome(dtMs) {
+    if (!lobbyBiomeGlow || !lobbyBiomeLayer) return;
+    const t = performance.now() / 1000;
+    lobbyBiomeGlow.alpha = 0.75 + 0.25 * Math.sin(t * 0.6);
+    if (lobbyBiomeLayer._props) {
+        lobbyBiomeLayer._props.rotation = Math.sin(t * 0.25) * 0.006;
+    }
 }
 
 function startLobbyDecor(zone, zoneMobs) {
@@ -665,6 +685,7 @@ function ensureLobbyDecorApp() {
         antialias: true,
     });
     lobbyDecorApp.ticker.add(() => tickLobbyDecor(lobbyDecorApp.ticker.deltaMS / 1000));
+    lobbyDecorApp.ticker.add(() => tickLobbyBiome(lobbyDecorApp.ticker.deltaMS));
     window.addEventListener('resize', () => {
         lobbyDecorApp.renderer.resize(window.innerWidth, window.innerHeight);
         lobbyBiomeZone = -1; // перерисовать биом под новый размер
@@ -689,13 +710,7 @@ function pickDecorMob() {
 function spawnDecorMob(x, y) {
     const def = pickDecorMob();
     const c = new PIXI.Container();
-    // Тёмная подложка-тень: мобы зоны видны даже когда цвет сливается
-    // с фоном (зелёный Point на зелёном градиенте).
-    const shadow = new PIXI.Graphics();
-    shadow.beginFill(0x000000, 0.38);
-    shadow.drawCircle(0, 0, Math.max(16, def.size * 1.35));
-    shadow.endFill();
-    c.addChild(shadow);
+    // Решение игрока: БЕЗ тёмных пятен-подложек — мобы полноцветные на ярком биоме.
     const g = new PIXI.Graphics();
     drawMobShape(g, { shape: def.shape, color: def.color, size: def.size });
     c.addChild(g);
