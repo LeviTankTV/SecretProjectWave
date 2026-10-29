@@ -6752,6 +6752,17 @@ function tick() {
                 }
             }
             drawMobAura(a.aura, { size: a.size, rarityI: a.rarityI }, performance.now() / 1000);
+            // WAVEBORN: подсветка мобов по клику на карточке ростера (2с).
+            const hl = window.__wbHl;
+            if (hl && performance.now() < hl.until &&
+                a.type === hl.type && a.rarityI === hl.rarity) {
+                const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 90);
+                a.aura.lineStyle(3, 0xffffff, 0.5 + 0.4 * pulse);
+                a.aura.drawCircle(0, 0, a.size + 8 + 4 * pulse);
+                a.aura.lineStyle(2, 0x00f0ff, 0.7);
+                a.aura.drawCircle(0, 0, a.size + 14 + 6 * pulse);
+                a.aura.lineStyle(0);
+            }
         }
 
         // Витринные Comet (14) и Beam (15) в TestRoom: «агро» — при приближении
@@ -7248,22 +7259,82 @@ function updateWaveHud(state) {
     l2.style.width = Math.round(f2 * 100) + '%';
     l2.style.display = phase === 'hold' ? 'block' : 'none';
 
-    // Ростер живых мобов: сортировка по редкости ↓, потом по названию.
+    // Ростер волны: КАРТОЧКИ МОБОВ (WAVEBORN/florr-стиль, спека RICHNESS №1-7):
+    // рамка = цвет редкости, тёмный силуэт моба на градиенте редкости,
+    // ×N белым в углу; частые слева, редкие справа ПОВЕРХ (каскад);
+    // тип исчезает, когда счётчик опустился до нуля (сервер не шлёт его);
+    // клик по карточке — подсветка живых мобов типа на арене (2с).
     const key = roster.map(r => r.type + r.rarity + 'x' + r.count).join(',');
     if (key === waveHudCache) return;
     waveHudCache = key;
     const rosterEl = document.getElementById('waveRoster');
     rosterEl.innerHTML = '';
-    const sorted = roster.slice().sort((a, b) => (b.rarity - a.rarity) || a.name.localeCompare(b.name));
-    for (const r of sorted) {
+    const sorted = roster.slice().sort((a, b) =>
+        (a.rarity - b.rarity) || (b.count - a.count) || a.name.localeCompare(b.name));
+    sorted.forEach((r, i) => {
         const rc = rarityColors[Math.min(r.rarity || 0, rarityColors.length - 1)];
-        const chip = document.createElement('div');
-        chip.className = 'wr-chip';
-        chip.style.borderColor = rc;
-        chip.innerHTML = '<b style="color:' + rc + '">' + escapeHtml2(r.name) + '</b>' +
-            '<span class="wr-cnt">× ' + r.count + '</span>';
-        rosterEl.appendChild(chip);
-    }
+        const card = document.createElement('div');
+        card.className = 'wr-card' + (i > 0 ? ' wr-over' : '');
+        card.style.zIndex = String(10 + r.rarity);
+        const fill = mobRarityGradient(rc, r.rarity);
+        card.style.borderColor = rc;
+        card.style.background = fill;
+        const img = document.createElement('img');
+        img.className = 'wr-silhouette';
+        img.src = mobIconDataURL(r.type, r.color, r.rarity);
+        img.draggable = false;
+        card.appendChild(img);
+        const cnt = document.createElement('b');
+        cnt.className = 'wr-cnt';
+        cnt.textContent = '×' + r.count;
+        card.appendChild(cnt);
+        card.title = r.name + ' (' + rarityName(r.rarity) + ')';
+        // Подсветка мобов типа на арене по клику (2с).
+        card.addEventListener('click', () => {
+            window.__wbHl = { type: r.type, rarity: r.rarity, until: performance.now() + 2000 };
+            uiSnd('click');
+        });
+        rosterEl.appendChild(card);
+    });
+}
+
+// Градиент заливки карточки по цвету редкости: у высоких тиров насыщеннее.
+function mobRarityGradient(hex, rarity) {
+    const light = shadeHex(hex, 1.55);
+    const dark = shadeHex(hex, 0.55);
+    const sat = Math.min(0.92, 0.55 + rarity * 0.055);
+    return 'linear-gradient(160deg, ' + light + ' 0%, ' + hex + ' ' +
+        Math.round(45 + rarity * 3) + '%, ' + dark + ' 100%)';
+    // sat зарезервирован под будущую регулировку насыщенности через color-mix.
+}
+
+// Иконка моба в карточке: реальная форма моба, отрисованная offscreen-PIXI
+// в dataURL (кэш по shape+color). Силуэт делается CSS-фильтром на img.
+let _iconApp = null;
+const _iconCache = new Map();
+function mobIconDataURL(shape, color, rarity) {
+    const key = shape + '|' + color;
+    if (_iconCache.has(key)) return _iconCache.get(key);
+    let url = '';
+    try {
+        if (window.PIXI) {
+            // preserveDrawingBuffer: у минифицированной сборки PIXI 7 нет
+            // extract-плагина — читаем канвас приложения напрямую.
+            if (!_iconApp) {
+                _iconApp = new PIXI.Application({ width: 76, height: 76, backgroundAlpha: 0, autoStart: false, preserveDrawingBuffer: true });
+            }
+            const g = new PIXI.Graphics();
+            drawMobShape(g, { shape, color: color || 0x888888, size: 24 });
+            g.x = 38; g.y = 38;
+            _iconApp.stage.addChild(g);
+            _iconApp.render();
+            url = _iconApp.view.toDataURL('image/png');
+            _iconApp.stage.removeChildren();
+            g.destroy();
+        }
+    } catch (e) { url = ''; }
+    _iconCache.set(key, url);
+    return url;
 }
 
 // ===== WAVEBORN UI-опции: масштаб HUD, прозрачность, уведомления, глитч =====

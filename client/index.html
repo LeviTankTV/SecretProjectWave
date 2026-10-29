@@ -2311,6 +2311,38 @@
         #playerHud, #xpBar, #gameHotbar { zoom: var(--wb-hud, 1); }
     </style>
 
+
+    <style>
+        /* ---------- RICHNESS Б1: карточки мобов волны (florr-стиль) ---------- */
+        #waveRoster {
+            display: flex; flex-direction: row; align-items: center; justify-content: center;
+            margin-top: 6px; pointer-events: auto; min-height: 66px;
+        }
+        .wr-card {
+            position: relative; width: 56px; height: 64px; flex: 0 0 auto;
+            border: 3px solid #fff; border-radius: 9px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.45), inset 0 0 8px rgba(255,255,255,0.18);
+            cursor: pointer; transition: transform .12s ease, filter .12s ease;
+            overflow: visible;
+        }
+        .wr-card:hover { transform: translateY(-4px) scale(1.06); filter: brightness(1.15); }
+        .wr-over { margin-left: -10px; } /* каскад: редкие перекрывают частых */
+        .wr-silhouette {
+            position: absolute; left: 50%; top: 52%; transform: translate(-50%,-50%);
+            width: 46px; height: 46px; pointer-events: none;
+            filter: brightness(0) opacity(0.72);
+        }
+        .wr-cnt {
+            position: absolute; top: -7px; left: -5px;
+            font-family: var(--wb-font); font-size: 13px; font-weight: 700;
+            color: #fff; text-shadow: -1.5px 0 0 #000, 1.5px 0 0 #000, 0 -1.5px 0 #000, 0 1.5px 0 #000, 0 2px 4px rgba(0,0,0,0.6);
+            pointer-events: none; line-height: 1;
+        }
+        /* Табло волны: фон не перекрывает карточки, клики проходят мимо ростера */
+        #waveHudTop { pointer-events: none; }
+        #waveHudTop .wr-card, #waveHudTop #waveRoster { pointer-events: auto; }
+    </style>
+
 </head>
 <body>
     <!-- Декор меню (порт родителя): летающие мобы, звёзды, виньетка, шлейф -->
