@@ -22,3 +22,4 @@ desktop.ini
 
 # Unrelated content living in the project dir
 pig friends epic/
+*.exe~
