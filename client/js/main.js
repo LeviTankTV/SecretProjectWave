@@ -3201,13 +3201,24 @@ function render(state) {
             drawPlayerSprite(sprite, p.color, p.size, isMe, p.team || 0);
             world.addChild(sprite);
 
+            // WAVEBORN: ник на угловой тёмной плашке (свой — циан).
+            const namePlate = new PIXI.Graphics();
+            const nw = Math.max(46, p.name.length * 8.2 + 18);
+            namePlate.beginFill(0x05080f, 0.78);
+            namePlate.drawRoundedRect(-nw / 2, -13, nw, 21, 3);
+            namePlate.endFill();
+            namePlate.lineStyle(1, isMe ? 0x00f0ff : 0x3a4a66, 0.8);
+            namePlate.drawRoundedRect(-nw / 2, -13, nw, 21, 3);
+            sprite.addChild(namePlate);
             const text = new PIXI.Text(p.name, {
-                fontFamily: 'Arial', fontSize: 14, fill: '#ffffff',
-                stroke: '#000000', strokeThickness: 3,
+                fontFamily: 'Chakra Petch, Segoe UI, sans-serif', fontSize: 12.5,
+                fontWeight: '600', fill: isMe ? '#7df3ff' : '#e6f0fa',
+                letterSpacing: 1,
             });
             text.anchor.set(0.5);
             sprite.addChild(text);
-            text.y = -p.size - 8;
+            text.y = -p.size - 8 - 3;
+            namePlate.y = -p.size - 8 - 3;
 
             // Уровень цифрой возле ника, в цвет шара игрока.
             const lvl = new PIXI.Text(String(p.level || 0), {
@@ -6585,10 +6596,16 @@ function drawMinimap() {
     const sx = (x) => cx + (x - camX) * scale;
     const sy = (y) => cy + (y - camY) * scale;
 
-    // Круглая маска + подложка.
+    // WAVEBORN: октагональная маска (угловатый HUD).
+    const octPts = [];
+    for (let k = 0; k < 8; k++) {
+        const a = (k / 8) * Math.PI * 2 + Math.PI / 8;
+        octPts.push([cx + Math.cos(a) * R * 1.08, cy + Math.sin(a) * R * 1.08]);
+    }
     mctx.save();
     mctx.beginPath();
-    mctx.arc(cx, cy, R, 0, Math.PI * 2);
+    octPts.forEach((pt, k) => { if (k === 0) mctx.moveTo(pt[0], pt[1]); else mctx.lineTo(pt[0], pt[1]); });
+    mctx.closePath();
     mctx.clip();
     mctx.fillStyle = 'rgba(8,12,18,0.92)';
     mctx.fillRect(0, 0, W, H);
@@ -6661,11 +6678,26 @@ function drawMinimap() {
         if (a.ally) {
             mctx.fillStyle = (a.owner && a.owner === myId) ? '#2ecc71' : '#4a9bff';
         } else {
-            mctx.fillStyle = '#ff6b6b';
+            // WAVEBORN: враги — точками цвета своей редкости; босс (6+) крупнее.
+            const rc = (typeof rarityColors !== 'undefined') ? rarityColors[Math.min(a.rarityI || 0, rarityColors.length - 1)] : '#ff6b6b';
+            mctx.fillStyle = rc;
+            const rr = (a.rarityI >= 6) ? 4 : 1.5 + Math.min(4, a.size * 0.03);
+            mctx.beginPath();
+            mctx.arc(mx, my2, rr, 0, Math.PI * 2);
+            mctx.fill();
+            if (a.rarityI >= 6) {
+                mctx.strokeStyle = 'rgba(255,255,255,0.7)';
+                mctx.lineWidth = 1;
+                mctx.stroke();
+            }
         }
         mctx.beginPath();
-        mctx.arc(mx, my2, 1.5 + Math.min(4, a.size * 0.03), 0, Math.PI * 2);
-        mctx.fill();
+        if (!(a.ally) && a.rarityI >= 6) {
+            // босс-точка уже нарисована выше
+        } else {
+            mctx.arc(mx, my2, 1.5 + Math.min(4, a.size * 0.03), 0, Math.PI * 2);
+            mctx.fill();
+        }
     }
 
     // Петали-предметы в видимой области.
@@ -6692,10 +6724,11 @@ function drawMinimap() {
 
     mctx.restore();
 
-    // Круглая рамка.
+    // Октагональная рамка WAVEBORN.
     mctx.beginPath();
-    mctx.arc(cx, cy, R, 0, Math.PI * 2);
-    mctx.strokeStyle = 'rgba(255,255,255,0.4)';
+    octPts.forEach((pt, k) => { if (k === 0) mctx.moveTo(pt[0], pt[1]); else mctx.lineTo(pt[0], pt[1]); });
+    mctx.closePath();
+    mctx.strokeStyle = 'rgba(0,240,255,0.45)';
     mctx.lineWidth = 2;
     mctx.stroke();
 }
