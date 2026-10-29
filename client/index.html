@@ -2343,6 +2343,37 @@
         #waveHudTop .wr-card, #waveHudTop #waveRoster { pointer-events: auto; }
     </style>
 
+
+    <style>
+        /* ---------- RICHNESS Б5: алерт редкого дропа ---------- */
+        #wbDropAlert {
+            position: fixed; left: 50%; top: 26%; transform: translateX(-50%);
+            z-index: 220; pointer-events: none; display: none;
+        }
+        #wbDropCard {
+            display: flex; align-items: center; gap: 14px;
+            padding: 14px 26px 14px 14px;
+            background: linear-gradient(180deg, rgba(6,10,18,0.92), rgba(3,6,12,0.95));
+            border: 3px solid #fff; border-radius: 14px;
+            box-shadow: 0 0 34px rgba(0,0,0,0.6), inset 0 0 22px rgba(255,255,255,0.06);
+            animation: wbDropIn .4s cubic-bezier(.2,.9,.3,1.25);
+        }
+        @keyframes wbDropIn {
+            from { transform: scale(1.6) translateY(-14px); opacity: 0; }
+            to   { transform: scale(1) translateY(0); opacity: 1; }
+        }
+        #wbDropIcon { width: 46px; height: 46px; }
+        #wbDropIcon svg { width: 100%; height: 100%; filter: drop-shadow(0 0 8px rgba(255,255,255,0.35)); }
+        #wbDropName {
+            font-family: var(--wb-font); font-size: 19px; font-weight: 700;
+            letter-spacing: 1px; text-transform: uppercase;
+        }
+        #wbDropSub {
+            font-family: var(--wb-mono); font-size: 11.5px; letter-spacing: 2px;
+            text-transform: uppercase; color: var(--wb-dim); margin-top: 2px;
+        }
+    </style>
+
 </head>
 <body>
     <!-- Декор меню (порт родителя): летающие мобы, звёзды, виньетка, шлейф -->
@@ -3052,6 +3083,17 @@
 
     <!-- Пилюля-тултип петаля (название/редкость/способность/HP/DMG) -->
     <div id="petalTip"></div>
+
+    <!-- WAVEBORN: крупный алерт редкого дропа (Fractal+ петали, золотые мобы) -->
+    <div id="wbDropAlert">
+        <div id="wbDropCard">
+            <div id="wbDropIcon"></div>
+            <div id="wbDropText">
+                <div id="wbDropName"></div>
+                <div id="wbDropSub"></div>
+            </div>
+        </div>
+    </div>
 
     <!-- PixiJS + клиент -->
     <script src="https://cdn.jsdelivr.net/npm/pixi.js@7.x/dist/pixi.min.js"></script>

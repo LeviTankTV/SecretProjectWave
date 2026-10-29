@@ -264,6 +264,8 @@ const WB_I18N = {
     'set.langPick':         { en: 'Interface language', ru: 'Язык интерфейса' },
     'set.langNote':         { en: 'Saved in this browser.', ru: 'Сохраняется в этом браузере.' },
     'set.done':             { en: 'Done', ru: 'Готово' },
+    'drop.golden':          { en: 'Golden mob defeated', ru: 'Золотой моб побеждён' },
+    'drop.petal':           { en: 'petal', ru: 'петаль' },
 };
 window.tr = function (key) {
     const row = WB_I18N[key];
@@ -2326,17 +2328,31 @@ function connect() {
                 break;
             case 'mobDied':
                 sfx('mobKill');
+                if (msg.color === 0xffd700) {
+                    const live2 = mobActors[msg.id];
+                    wbShowDropAlert(null, -1, true, msg, live2 ? live2.mname || '' : '');
+                    wbJingle(7);
+                }
                 spawnMobFade(msg);
                 break;
             case 'chat':
                 addChatMessage(msg.name || '?', msg.text || '', msg.zone || '', msg.id || '');
                 break;
-            case 'pickedUp':
-                sfx('pickup');
+            case 'pickedUp': {
+                const rr = msg.rarity || 0;
+                if (rr >= 6) {
+                    // WAVEBORN: крупный алерт редкого дропа (Fractal+).
+                    wbShowDropAlert(msg.kind, rr, false);
+                    wbJingle(rr);
+                } else {
+                    sfx('pickup');
+                    if (rr >= 3) wbJingle(rr);
+                }
                 if (!window.WB_UI.noToasts) {
                     pushToast('pickup', `+ ${kindName(msg.kind)} ${msg.rarity || ''}`);
                 }
                 break;
+            }
             case 'sys':
                 addSystemToast(msg.text || '', msg.kind || '');
                 break;
@@ -3516,6 +3532,7 @@ function renderMobs(mobs) {
             a.labelRow = labelRow; a.targetX = m.x; a.targetY = m.y; a.size = m.size;
             a.bw = bw; a.bh = bh; a.fillW = 0; a.ghost = 0; a.rot = 0;
             a.rarityI = m.rarityI || 0;
+            a.mname = m.name || '';
             // Мелкие мобы (Point/Line-редкость или крошечные) не таскают за собой
             // «столбик» из HP-бара и имени под каждым: кластер скрыт и всплывает
             // только когда моба ударили (см. updateMobActors, a.tinyInfo).
@@ -6573,6 +6590,36 @@ function drawMinimap() {
 
 // ----- Звук (порт родителя, audio.js): генеративный WebAudio-движок,
 // всё в try/catch — без контекста/жеста модуль просто молчит -----
+
+// wbJingle(rarity) — джингл дропа: тембр и длина растут с редкостью
+// (Point..Square — короткий клик-арпеджио, Pentagon+ — фанфара-аккорд).
+function wbJingle(rarity) {
+    try {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return;
+        if (!wbJingle.ctx) wbJingle.ctx = new AC();
+        const ctx = wbJingle.ctx;
+        if (ctx.state === 'suspended') { ctx.resume(); }
+        const t0 = ctx.currentTime;
+        const base = 392 * Math.pow(1.122, Math.min(rarity, 12)); // G4 + тон/тир
+        const steps = (rarity >= 6) ? [0, 4, 7, 12, 16] : (rarity >= 4) ? [0, 4, 7, 12] : [0, 4];
+        const gain = ctx.createGain();
+        gain.gain.value = 0.16;
+        gain.connect(ctx.destination);
+        steps.forEach((st, i) => {
+            const o = ctx.createOscillator();
+            const g = ctx.createGain();
+            o.type = (rarity >= 6) ? 'triangle' : 'square';
+            o.frequency.value = base * Math.pow(2, st / 12);
+            const ts = t0 + i * 0.07;
+            g.gain.setValueAtTime(0, ts);
+            g.gain.linearRampToValueAtTime(0.5, ts + 0.015);
+            g.gain.exponentialRampToValueAtTime(0.001, ts + (rarity >= 6 ? 0.5 : 0.22));
+            o.connect(g); g.connect(gain);
+            o.start(ts); o.stop(ts + 0.6);
+        });
+    } catch (e) {}
+}
 function sfx(name, opts) {
     try { if (window.GameAudio) window.GameAudio.sfx(name, opts); } catch (e) {}
 }
@@ -7473,6 +7520,44 @@ function mobIconDataURL(shape, color, rarity) {
     } catch (e) { url = ''; }
     _iconCache.set(key, url);
     return url;
+}
+
+// ===== WAVEBORN: крупный алерт редкого дропа (RICHNESS №17) =====
+let wbDropAlertTimer = 0;
+function wbShowDropAlert(kind, rarity, golden, diedMsg, mobName) {
+    const box = document.getElementById('wbDropAlert');
+    const card = document.getElementById('wbDropCard');
+    const icon = document.getElementById('wbDropIcon');
+    const name = document.getElementById('wbDropName');
+    const sub = document.getElementById('wbDropSub');
+    if (!box || !card) return;
+    let rc, title, subTxt;
+    if (golden) {
+        rc = '#ffd700';
+        const mn = mobName || 'mob';
+        title = 'GOLDEN ' + mn.toUpperCase();
+        subTxt = window.tr ? window.tr('drop.golden') : 'Golden mob defeated';
+        icon.innerHTML = '';
+        icon.style.background = 'radial-gradient(circle, #fff3c0 0%, #ffd700 55%, #8a6a00 100%)';
+        icon.style.borderRadius = '50%';
+    } else {
+        rc = rarityColors[Math.min(rarity, rarityColors.length - 1)];
+        title = kindName(kind).toUpperCase();
+        subTxt = rarityName(rarity) + (window.tr ? ' · ' + window.tr('drop.petal') : ' · petal');
+        icon.style.borderRadius = '10px';
+        icon.style.background = 'radial-gradient(circle at 35% 30%, #ffffff 0%, ' + rc + ' 60%, rgba(0,0,0,0.4) 100%)';
+    }
+    card.style.borderColor = rc;
+    card.style.boxShadow = '0 0 34px rgba(0,0,0,0.6), 0 0 24px ' + rc + '66';
+    name.style.color = rc;
+    name.textContent = title;
+    sub.textContent = subTxt;
+    box.style.display = 'block';
+    card.style.animation = 'none';
+    void card.offsetWidth;
+    card.style.animation = '';
+    clearTimeout(wbDropAlertTimer);
+    wbDropAlertTimer = setTimeout(() => { box.style.display = 'none'; }, 2600);
 }
 
 // ===== WAVEBORN UI-опции: масштаб HUD, прозрачность, уведомления, глитч =====

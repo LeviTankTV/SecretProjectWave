@@ -319,16 +319,28 @@ function rebuildSlotHotbar(st) {
             cell.x = startX + j * gap;
             cell.y = row.y;
 
+            // WAVEBORN: карточка петали (единый язык с карточками мобов) —
+            // градиент редкости + силуэт.
             const frame = new PIXI.Graphics();
-            frame.beginFill(0x000000, 0.35);
-            frame.drawRoundedRect(-13, -13, 26, 26, 6);
+            const rcInt = parseInt(rcol.slice(1), 16);
+            const lInt = lerpHex(rcInt, 0xffffff, 0.32);
+            const dInt = lerpHex(rcInt, 0x000000, 0.45);
+            frame.beginFill(lInt, 0.95);
+            frame.drawRect(-14, -14, 28, 10);
             frame.endFill();
-            frame.lineStyle(2.5, rcol, 0.95);
-            frame.drawRoundedRect(-13, -13, 26, 26, 6);
+            frame.beginFill(rcInt, 0.95);
+            frame.drawRect(-14, -4, 28, 9);
+            frame.endFill();
+            frame.beginFill(dInt, 0.95);
+            frame.drawRect(-14, 5, 28, 9);
+            frame.endFill();
+            frame.lineStyle(2.5, rcol, 1);
+            frame.drawRoundedRect(-14, -14, 28, 28, 7);
             cell.addChild(frame);
 
             const sprite = makePetalSprite(p);
-            sprite.scale.set(0.9);
+            sprite.scale.set(0.95);
+            sprite.tint = 0x1c1c24; // силуэт
             cell.addChild(sprite);
 
             st.hotbarRow.addChild(cell);
