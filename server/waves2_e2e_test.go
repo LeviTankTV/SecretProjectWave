@@ -78,10 +78,37 @@ func TestWavesHeadlessProgression(t *testing.T) {
 }
 
 func TestWavesHeadlessLadder(t *testing.T) {
-	// До 32-й волны пол поднимается до 8 (Dot) — истинная лестница в деле.
+	// Кап Chaos (решение игрока: истинных тиров у мобов нет): с 32-й волны
+	// потолок редкости мобов = 7 (Chaos).
 	maxRar, _ := runWavesHeadless(t, 32)
-	if maxRar < 8 {
-		t.Errorf("32 волны: max rarity %d, want >= 8 (Dot)", maxRar)
+	if maxRar != 7 {
+		t.Errorf("32 волны: max rarity %d, want 7 (кап Chaos)", maxRar)
+	}
+	// Chaos+ циклы: босс волны 50 — Chaos с множителем 2.25.
+	initWorld()
+	r := newWaveRoom(20)
+	p := &Player{}
+	p.State.ID = "p1"
+	p.State.HP = 1e9
+	p.State.MaxHP = 1e9
+	p.Dead = false
+	p.zone = 0
+	r.players["p1"] = p
+	r.startWave(50)
+	if r.waveSpecial != "boss" {
+		t.Fatalf("wave 50 special = %q, want boss", r.waveSpecial)
+	}
+	want := mobTypes[r.mobs[0].Type].BaseHP * rarityDanger[7] * mobHPScale * 2.0 * chaosHPMult * bossCycleMult(50)
+	found := false
+	for i := range r.mobs {
+		if r.mobs[i].Rarity == 7 && r.mobs[i].Type == r.mobs[0].Type {
+			if r.mobs[i].MaxHP >= want*0.99 {
+				found = true
+			}
+		}
+	}
+	if !found {
+		t.Errorf("Chaos+ босс волны 50 без множителя x2.25 (want MaxHP >= %v)", want)
 	}
 }
 

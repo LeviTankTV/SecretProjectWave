@@ -170,8 +170,8 @@ const mobHPScale = 4.0
 
 // mobTypesInZone - из каких типов выбирается рандомный моб в зоне.
 var mobTypesInZone = [][]string{
-	{"dot", "pebble", "beads", "tear", "trinity"},             // 0  Point (Trinity — тройной организм, редкий)
-	{"dart", "spinner", "comet", "beam"},                      // 1  Line
+	{"dot", "pebble", "beads", "tear", "trinity", "bud", "marble"}, // 0  Point (Trinity — редкий; Bud/Marble — древние гости)
+	{"dart", "spinner", "comet", "beam", "lancer", "javelin", "darter", "spikelance"}, // 1  Line (копейщики-гости)
 	{"triangle", "arrow", "spike", "arrowhead", "shardwing", "zigzag"}, // 2  Triangle (новые: Arrowhead/Shardwing/Zigzag)
 	{"square", "block", "cross", "prism", "frame", "kite", "quarry"}, // 3  Square (Prism — редкий нейтральный; новые Frame/Kite/Quarry)
 	{"pentagon", "shield", "star", "nova", "mirror"},          // 4  Pentagon (Nova — реже Star, Mirror — очень редкий)
@@ -179,8 +179,8 @@ var mobTypesInZone = [][]string{
 	{"actal", "fragspark", "fragwall", "fragtank", "sun", "mote"}, // 6  Fractal (FragTank — порт родителя, FragWall — Wave-уникал)
 	{"void", "entropy", "hexagon", "saturn", "eye", "galaxy", "blackhole"}, // 7  Chaos
 	// Второй уровень (те же типы, что у родительской зоны).
-	{"dot", "pebble", "beads", "tear", "trinity"},             // 8  Point II
-	{"dart", "spinner", "comet", "beam"},                      // 9  Line II
+	{"dot", "pebble", "beads", "tear", "trinity", "bud", "marble"}, // 8  Point II
+	{"dart", "spinner", "comet", "beam", "lancer", "javelin", "darter", "spikelance"}, // 9  Line II
 	{"triangle", "arrow", "spike", "arrowhead", "shardwing", "zigzag"}, // 10 Triangle II
 	{"square", "block", "cross", "prism", "frame", "kite", "quarry"}, // 11 Square II
 	{"pentagon", "shield", "star", "nova", "mirror"},          // 12 Pentagon II
@@ -199,16 +199,16 @@ var mobTypesInZone = [][]string{
 // шанс упал с 2/11 ≈ 18% до 1/14 ≈ 7% (в ~2.5 раза).
 // Если весов нет (или длина не совпадает) — randMobType падает на равномерный выбор.
 var zoneSpawnWeights = map[int][]int{
-	0:  {5, 4, 1, 2, 1},                       // trinity — редкий
-	1:  {5, 4, 2, 2},
+	0:  {5, 4, 1, 2, 1, 1, 1},                 // trinity/bud/marble — редкие гости
+	1:  {5, 4, 2, 2, 1, 1, 1, 1},              // стражи Line — редкие
 	2:  {5, 4, 1, 2, 2, 1},                    // arrowhead/shardwing — заметные, zigzag — редкий
 	3:  {5, 2, 2, 1, 2, 2, 1},                 // frame/kite — заметные, quarry — редкий
 	4:  {7, 6, 1, 1, 1},                       // nova — как star, mirror — очень редкий
 	5:  {4, 2, 2, 2, 1},
 	6:  {4, 4, 3, 3, 2, 2},                    // fragtank наравне с fragwall
 	7:  {33, 33, 12, 10, 1, 11, 1},
-	8:  {5, 4, 1, 2, 1},
-	9:  {5, 4, 2, 2},
+	8:  {5, 4, 1, 2, 1, 1, 1},
+	9:  {5, 4, 2, 2, 1, 1, 1, 1},
 	10: {5, 4, 1, 2, 2, 1},
 	11: {5, 2, 2, 1, 2, 2, 1},
 	12: {7, 6, 1, 1, 1},

@@ -28,36 +28,49 @@ func TestWaveSpecialFor(t *testing.T) {
 }
 
 func TestWaveLadder(t *testing.T) {
-	// Лестница боссов 2.0: 10 -> Hexagon(5), 30 -> Chaos(7), 40 -> Dot(8),
-	// 110+ -> Origin(15).
+	// Лестница боссов: 10 -> Hexagon(5), 20 -> Fractal(6), 30+ -> Chaos(7).
+	// Решение игрока: истинных тиров (Dot..Origin) у МОБОВ нет — кап Chaos;
+	// энделгейм — Chaos+ циклы (множитель статов), true-редкости только у петалей.
 	if got := bossRarityFor(10); got != 5 {
 		t.Errorf("bossRarityFor(10) = %d, want 5", got)
+	}
+	if got := bossRarityFor(20); got != 6 {
+		t.Errorf("bossRarityFor(20) = %d, want 6", got)
 	}
 	if got := bossRarityFor(30); got != 7 {
 		t.Errorf("bossRarityFor(30) = %d, want 7", got)
 	}
-	if got := bossRarityFor(40); got != 8 {
-		t.Errorf("bossRarityFor(40) = %d, want 8 (Dot)", got)
+	if got := bossRarityFor(110); got != 7 {
+		t.Errorf("bossRarityFor(110) = %d, want 7 (кап Chaos)", got)
 	}
-	if got := bossRarityFor(110); got != 15 {
-		t.Errorf("bossRarityFor(110) = %d, want 15 (Origin)", got)
+	// Редкости волн капятся на Chaos.
+	if _, ceil := waveRarityFor(28); ceil != 7 {
+		t.Errorf("waveRarityFor(28) ceil = %d, want 7", ceil)
 	}
-	// Полная лестница: Origin в потолке с волны 28, Dot в пуле с ~16-й.
-	if _, ceil := waveRarityFor(28); ceil != 15 {
-		t.Errorf("waveRarityFor(28) ceil = %d, want 15", ceil)
+	if _, ceil := waveRarityFor(60); ceil != 7 {
+		t.Errorf("waveRarityFor(60) ceil = %d, want 7", ceil)
 	}
-	if _, ceil := waveRarityFor(16); ceil != 9 {
-		t.Errorf("waveRarityFor(16) ceil = %d, want 9 (Dot+)", ceil)
+	if floor, _ := waveRarityFor(60); floor != 6 {
+		t.Errorf("waveRarityFor(60) floor = %d, want 6", floor)
 	}
-	// Пулы истинной лестницы валидны.
-	for rar := 8; rar <= 15; rar++ {
-		pool := waveTrueLadderPool(rar)
-		if len(pool) == 0 {
-			t.Fatalf("waveTrueLadderPool(%d) empty", rar)
-		}
-		for _, k := range pool {
-			if _, ok := mobTypes[k]; !ok {
-				t.Fatalf("waveTrueLadderPool(%d): unknown mob %q", rar, k)
+	// Chaos+ циклы: 30 -> x1, 40 -> x1.5, 50 -> x2.25, 60 -> x3.375.
+	if got := bossCycleMult(30); got != 1.0 {
+		t.Errorf("bossCycleMult(30) = %v, want 1", got)
+	}
+	if got := bossCycleMult(40); got != 1.5 {
+		t.Errorf("bossCycleMult(40) = %v, want 1.5", got)
+	}
+	if got := bossCycleMult(50); got != 2.25 {
+		t.Errorf("bossCycleMult(50) = %v, want 2.25", got)
+	}
+	if got := bossCycleMult(60); got != 3.375 {
+		t.Errorf("bossCycleMult(60) = %v, want 3.375", got)
+	}
+	// Свита боссов возвращает валидные подвиды.
+	for i := 0; i < 50; i++ {
+		if v := bossEscortVariant(); v != "" {
+			if _, ok := variantDefs[v]; !ok {
+				t.Fatalf("bossEscortVariant: unknown variant %q", v)
 			}
 		}
 	}

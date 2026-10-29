@@ -24,7 +24,8 @@ const (
 	waveSpecialBreak  = 5.0  // пауза после спец-волны
 	waveBossBreak     = 10.0 // пауза после босс-волны (лобби готовится)
 	waveStartBreak    = 5.0  // секунд до первой волны после старта
-	waveMaxRarity     = 15   // Origin — потолок лестницы волн 2.0
+	waveMaxRarity     = rarityChaos // потолок редкости МОБОВ = Chaos (решение игрока:
+	// истинные тиры Dot..Origin остаются только у ПЕТАЛЕЙ — крафт)
 	waveSpawnNearDist = 350  // мобы появляются не дальше этого от случайного игрока
 	waveSpawnSafeDist = 300.0 // ...но не ближе этого к живому игроку (не на голове)
 	waveArenaRadius   = 1300 // стартовый радиус круглой арены
@@ -34,31 +35,44 @@ const (
 	waveClearAliveMax = 5    // живых ≤5 при полном спавне — волна сразу завершена
 )
 
-// waveTrueLadderPool — пул «древних стражей» для редкостей ИСТИННОЙ лестницы
-// (8..15, порт родителя): Bud/Marble (Origin of Point), Lancer/Javelin
-// (Origin of Line), Darter/SpikeLance (вершина). Смешиваются 50/50 с обычным
-// пулом зоны: истинные тиры ощущаются «чужими», но не заменяют биом арены.
-func waveTrueLadderPool(rar int) []string {
+// bossEscortVariant — подвид моба свиты Chaos+ босса: 40% элита
+// (ring/star/crescent), 10% золотой, 50% обычный.
+func bossEscortVariant() string {
+	roll := rand.Intn(10)
 	switch {
-	case rar <= 9:
-		return []string{"bud", "marble"}
-	case rar <= 11:
-		return []string{"lancer", "javelin"}
-	case rar <= 13:
-		return []string{"darter", "spikelance", "bud", "marble"}
+	case roll < 1:
+		return "gold"
+	case roll < 5:
+		vs := []string{"ring", "star", "crescent"}
+		return vs[rand.Intn(len(vs))]
 	default:
-		return []string{"darter", "spikelance", "lancer", "javelin", "bud", "marble"}
+		return ""
 	}
 }
 
 // bossRarityFor — редкость босса n/10-й босс-волны: лестница Hexagon(10) ->
-// Fractal(20) -> Chaos(30) -> Dot(40) -> Vector(50) -> ... -> Origin(110+).
+// Fractal(20) -> Chaos(30), дальше — Chaos+ циклы: босс остаётся Chaos, но
+// циклы (каждые 10 волн после 30-й) умножают его статы (bossCycleMult) и
+// дают элитную свиту подвидов.
 func bossRarityFor(n int) int {
 	b := n/10 + 4
 	if b > waveMaxRarity {
 		b = waveMaxRarity
 	}
 	return b
+}
+
+// bossCycleMult — множитель HP/DMG Chaos-босса в энделгейме: волна 40 — ×1.5,
+// 50 — ×2.25, 60 — ×3.375…
+func bossCycleMult(n int) float64 {
+	if n <= 30 {
+		return 1.0
+	}
+	cycles := (n-30+9)/10 // 40 -> 1, 50 -> 2, ...
+	if cycles < 1 {
+		cycles = 1
+	}
+	return math.Pow(1.5, float64(cycles))
 }
 
 // waveArenaCenterIn — центр круглой арены выбранной зоны (0-7).
@@ -233,16 +247,22 @@ func (r *Room) spawnWaveMob() {
 			rar = 1
 		}
 	}
-	// Истинная лестница (8..15): 50/50 древние стражи или пул зоны.
-	if rar >= 8 && r.waveSpecial != "swarm" && r.waveSpecial != "tanks" && r.waveSpecial != "hunters" {
-		if rand.Intn(2) == 0 {
-			pool := waveTrueLadderPool(rar)
-			tname = pool[rand.Intn(len(pool))]
-		}
-	}
 	r.waveToSpawn--
 	r.waveSpawned++
 	if m, ok := r.spawnWaveMobAt(tname, rar); ok {
+		// Свита Chaos+ босса: подвид по bossEscortVariant.
+		if r.waveSpecial == "boss" && r.waveNum > 30 {
+			if v := bossEscortVariant(); v != "" {
+				m.Variant = v
+				scaleMobForRarity(&m, m.Rarity)
+				for i := range r.mobs {
+					if r.mobs[i].ID == m.ID {
+						r.mobs[i] = m
+						break
+					}
+				}
+			}
+		}
 		// Элитная волна: каждому мобу — гарантированный подвид (годролл золота ~15%).
 		if r.waveSpecial == "elite" {
 			if m.Variant == "" {
@@ -369,6 +389,10 @@ func (r *Room) startWave(n int) {
 	r.waveRunning = true
 	r.waveSpecial = waveSpecialFor(n)
 	floor, ceil := waveRarityFor(n)
+	// Хвост ПРОШЛОЙ волны расчищается ДО спавна (босс спавнится в switch
+	// ниже — очистка после него стирала босса; реальный порядок фиксирует
+	// баг «боссовые волны без босса»).
+	r.clearWaveMobs()
 	switch r.waveSpecial {
 	case "swarm":
 		r.waveToSpawn = 30 + n
@@ -395,8 +419,9 @@ func (r *Room) startWave(n int) {
 		r.waveMaxAlive = 12 + n/2
 		r.waveSpawnInterval = 1.0
 	case "boss":
-		// Босс лестницы (2.0): Hexagon(10) -> Fractal -> Chaos -> Dot -> ...
-		// -> Origin(110+). Сразу один босс-тир + свита из мобов зоны.
+		// Босс лестницы: Hexagon(10) -> Fractal(20) -> Chaos(30), дальше
+		// Chaos+ циклы: тот же Chaos-босс, но stats ×1.5 за цикл и свита
+		// мобов с подвидами (энделгейм; истинных тиров у мобов нет).
 		r.waveToSpawn = 4 + n
 		r.waveMaxAlive = 12
 		r.waveSpawnInterval = 1.0
@@ -405,7 +430,18 @@ func (r *Room) startWave(n int) {
 			ceil = bossRar
 		}
 		tname := randMobType(r.waveZone)
+		idx := len(r.mobs)
 		if m, ok := r.spawnWaveMobAt(tname, bossRar); ok {
+			// Chaos+ цикл: множитель статов всем свежезаспавненным (тринити
+			// может добавить копий — масштабируем весь диапазон).
+			mult := bossCycleMult(n)
+			if mult > 1.0 {
+				for i := idx; i < len(r.mobs); i++ {
+					r.mobs[i].HP *= mult
+					r.mobs[i].MaxHP *= mult
+					r.mobs[i].DMG *= mult
+				}
+			}
 			if txt := superSpawnText(r.waveZone, m); txt != "" {
 				r.broadcastSystemLocked("super", txt)
 			}
@@ -418,10 +454,6 @@ func (r *Room) startWave(n int) {
 			r.waveSpawnInterval = 0.4
 		}
 	}
-	// Хвост ПРОШЛОЙ волны (после hold-таймера) расчищается ДО спавна босса:
-	// раньше очистка стояла в конце функции и стирала босс-моба, только что
-	// заспавненного в switch выше (баг: «боссовые» волны шли без босса).
-	r.clearWaveMobs()
 	r.waveRarFloor, r.waveRarCeil = floor, ceil
 	// Арена растёт с волной (2.0): +25 радиуса за каждые 5 волн, кап 2200.
 	r.waveArenaR = arenaRadiusFor(n)
