@@ -31,6 +31,7 @@
         W = canvas.width = window.innerWidth;
         H = canvas.height = window.innerHeight;
         seedStars();
+        seedSilhouettes();
     }
 
     function seedStars() {
@@ -44,6 +45,45 @@
                 a: 0.06 + Math.random() * 0.22,
                 ph: Math.random() * Math.PI * 2,
             });
+        }
+    }
+
+    // Плавающие силуэты мобов (RICHNESS меню): круг/квадрат/треугольник/ромб,
+    // медленный дрейф, очень прозрачные — глубина сцены.
+    const silhouettes = [];
+    function seedSilhouettes() {
+        silhouettes.length = 0;
+        for (let i = 0; i < 7; i++) {
+            silhouettes.push({
+                x: Math.random() * W, y: Math.random() * H,
+                r: 14 + Math.random() * 30,
+                kind: Math.floor(Math.random() * 4), // 0 circle 1 square 2 tri 3 diamond
+                vx: (Math.random() - 0.5) * 14, vy: (Math.random() - 0.5) * 10,
+                a: 0.045 + Math.random() * 0.05,
+                rot: Math.random() * Math.PI, vr: (Math.random() - 0.5) * 0.2,
+            });
+        }
+    }
+    function drawSilhouettes(dt) {
+        for (const s0 of silhouettes) {
+            s0.x += s0.vx * dt; s0.y += s0.vy * dt; s0.rot += s0.vr * dt;
+            if (s0.x < -60) s0.x = W + 60; if (s0.x > W + 60) s0.x = -60;
+            if (s0.y < -60) s0.y = H + 60; if (s0.y > H + 60) s0.y = -60;
+            ctx.save();
+            ctx.translate(s0.x, s0.y);
+            ctx.rotate(s0.rot);
+            ctx.strokeStyle = 'rgba(140, 200, 235,' + s0.a + ')';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            if (s0.kind === 0) ctx.arc(0, 0, s0.r, 0, Math.PI * 2);
+            else if (s0.kind === 1) ctx.rect(-s0.r * 0.8, -s0.r * 0.8, s0.r * 1.6, s0.r * 1.6);
+            else if (s0.kind === 2) {
+                ctx.moveTo(0, -s0.r); ctx.lineTo(s0.r * 0.9, s0.r * 0.7); ctx.lineTo(-s0.r * 0.9, s0.r * 0.7); ctx.closePath();
+            } else {
+                ctx.moveTo(0, -s0.r); ctx.lineTo(s0.r * 0.7, 0); ctx.lineTo(0, s0.r); ctx.lineTo(-s0.r * 0.7, 0); ctx.closePath();
+            }
+            ctx.stroke();
+            ctx.restore();
         }
     }
 
@@ -61,6 +101,9 @@
         }
 
         ctx.clearRect(0, 0, W, H);
+
+        // Силуэты мобов (за звёздами).
+        drawSilhouettes(dt);
 
         // Звёзды-точки с мерцанием
         for (const s of stars) {

@@ -97,6 +97,7 @@ let specialColorAdded = false;
 // saveChosenColor — выбор цвета всегда с сохранением в localStorage.
 function saveChosenColor(c) {
     chosenColor = c;
+    try { if (typeof _heroApp !== 'undefined' && _heroApp) wbMenuHeroStart(); } catch (e) {}
     try { localStorage.setItem('playerColor', String(c)); } catch (e) {}
 }
 function ensureSpecialColor() {
@@ -266,6 +267,11 @@ const WB_I18N = {
     'set.done':             { en: 'Done', ru: 'Готово' },
     'drop.golden':          { en: 'Golden mob defeated', ru: 'Золотой моб побеждён' },
     'drop.petal':           { en: 'petal', ru: 'петаль' },
+    'menu.spRuns':          { en: 'Recent Runs', ru: 'Последние забеги' },
+    'menu.spRar':           { en: 'Rarity Progress', ru: 'Прогресс редкостей' },
+    'menu.spBest2':         { en: 'Mini-Bestiary', ru: 'Мини-бестиарий' },
+    'menu.noRuns':          { en: 'No runs yet — press PLAY!', ru: 'Забегов пока нет — жми ИГРАТЬ!' },
+    'menu.noBes':           { en: 'Fight mobs to fill the bestiary', ru: 'Сражайся с мобами — заполняй бестиарий' },
 };
 window.tr = function (key) {
     const row = WB_I18N[key];
@@ -293,6 +299,9 @@ function showScreen(name) {
         menu.classList.add('active');
         updateMenuLevel();
         closeGameInv();
+        // WAVEBORN MENU+: герой и насыщенные панели.
+        try { wbMenuHeroStart(); } catch (e) {}
+        try { wbRenderMenuPanels(); } catch (e) {}
         // WAVEBORN: прячем HUD волны, оставшийся от матча (артефакт над меню).
         const wbw = document.getElementById('waveBarWrap');
         if (wbw) wbw.style.display = 'none';
@@ -2351,6 +2360,7 @@ function connect() {
                 if (!window.WB_UI.noToasts) {
                     pushToast('pickup', `+ ${kindName(msg.kind)} ${msg.rarity || ''}`);
                 }
+                try { wbRarSeen(rr); } catch (e) {}
                 break;
             }
             case 'sys':
@@ -3533,6 +3543,7 @@ function renderMobs(mobs) {
             a.bw = bw; a.bh = bh; a.fillW = 0; a.ghost = 0; a.rot = 0;
             a.rarityI = m.rarityI || 0;
             a.mname = m.name || '';
+            try { if (m.type && !m.showcase) wbBesSeen(m.type, m.shape, m.color, m.name); } catch (e) {}
             // Мелкие мобы (Point/Line-редкость или крошечные) не таскают за собой
             // «столбик» из HP-бара и имени под каждым: кластер скрыт и всплывает
             // только когда моба ударили (см. updateMobActors, a.tinyInfo).
@@ -7522,8 +7533,158 @@ function mobIconDataURL(shape, color, rarity) {
     return url;
 }
 
+// ===== WAVEBORN MENU+: живой персонаж (шар + орбита петалей) =====
+var _heroApp = null, _heroColor = null, _heroPetals = [];
+function wbMenuHeroStart() {
+    const box = document.getElementById('menuHero');
+    if (!box || !window.PIXI) return;
+    if (_heroApp && _heroColor === chosenColor) { return; }
+    if (_heroApp) { try { _heroApp.destroy(true, { children: true }); } catch (e) {} _heroApp = null; }
+    box.innerHTML = '';
+    _heroColor = chosenColor;
+    try {
+    _heroApp = new PIXI.Application({ width: 170, height: 110, backgroundAlpha: 0, antialias: true });
+    box.appendChild(_heroApp.view);
+    const c = new PIXI.Container();
+    c.x = 85; c.y = 62;
+    _heroApp.stage.addChild(c);
+    // Тень + шар игрока (как в игре: свечение, блик, тёмный обод).
+    const shadow = new PIXI.Graphics();
+    shadow.beginFill(0x000000, 0.30);
+    shadow.drawEllipse(0, 26, 26, 7);
+    shadow.endFill();
+    c.addChild(shadow);
+    const ball = new PIXI.Graphics();
+    ball.beginFill(chosenColor, 0.20);
+    ball.drawCircle(0, 0, 21);
+    ball.endFill();
+    ball.beginFill(chosenColor, 1);
+    ball.drawCircle(0, 0, 16);
+    ball.endFill();
+    ball.beginFill(0xffffff, 0.4);
+    ball.drawEllipse(-5, -6, 7, 4.5);
+    ball.endFill();
+    ball.lineStyle(2, shade(chosenColor, -60), 0.9);
+    ball.drawCircle(0, 0, 16);
+    c.addChild(ball);
+    // Орбита: 5 петалей-овалов.
+    _heroPetals = [];
+    for (let i = 0; i < 5; i++) {
+        const pg = new PIXI.Graphics();
+        pg.beginFill(0xecf0f1, 1);
+        pg.drawEllipse(0, 0, 4.5, 6.5);
+        pg.endFill();
+        pg.lineStyle(1.5, 0x1a1e27, 0.8);
+        pg.drawEllipse(0, 0, 4.5, 6.5);
+        c.addChild(pg);
+        _heroPetals.push(pg);
+    }
+    let t = Math.random() * 10;
+    _heroApp.ticker.add(() => {
+        const dt = _heroApp.ticker.deltaMS / 1000;
+        t += dt;
+        c.y = 62 + Math.sin(t * 1.4) * 4; // левитация
+        c.rotation = Math.sin(t * 0.8) * 0.05;
+        _heroPetals.forEach((pg, i) => {
+            const a = t * 1.6 + (i / 5) * Math.PI * 2;
+            pg.x = Math.cos(a) * 34;
+            pg.y = Math.sin(a) * 34;
+            pg.rotation = a + Math.PI / 2;
+        });
+    });
+    } catch (e) {
+        try { (window.__errs = window.__errs || []).push('hero: ' + (e && e.message || e)); } catch (e2) {}
+    }
+}
+
+// ===== WAVEBORN MENU+: данные панелей (забеги/редкости/бестиарий) =====
+var WB_RUNS_KEY = 'wbRuns', WB_RAR_KEY = 'wbRarSeen', WB_BES_KEY = 'wbBesSeen';
+function wbRunPush(wave, kills, timeStr) {
+    let runs = [];
+    try { runs = JSON.parse(localStorage.getItem(WB_RUNS_KEY) || '[]'); } catch (e) {}
+    runs.unshift({ wave, kills, time: timeStr, ts: Date.now() });
+    runs = runs.slice(0, 5);
+    try { localStorage.setItem(WB_RUNS_KEY, JSON.stringify(runs)); } catch (e) {}
+}
+function wbRarSeen(rar) {
+    let set = [];
+    try { set = JSON.parse(localStorage.getItem(WB_RAR_KEY) || '[]'); } catch (e) {}
+    if (!set.includes(rar)) { set.push(rar); try { localStorage.setItem(WB_RAR_KEY, JSON.stringify(set)); } catch (e) {} }
+}
+function wbBesSeen(type, shape, color, name) {
+    // Клиентской таблицы типов нет — храним полные объекты из актёров.
+    let set = [];
+    try { set = JSON.parse(localStorage.getItem(WB_BES_KEY) || '[]'); } catch (e) {}
+    if (set.some(o => o && o.type === type)) return;
+    if (set.length < 40) {
+        set.push({ type, shape: shape || 'circle', color: color || 0x888888, name: name || type });
+        try { localStorage.setItem(WB_BES_KEY, JSON.stringify(set)); } catch (e) {}
+    }
+}
+function wbRenderMenuPanels() {
+    // Последние забеги.
+    const runsBox = document.getElementById('spRuns');
+    if (runsBox) {
+        let runs = [];
+        try { runs = JSON.parse(localStorage.getItem(WB_RUNS_KEY) || '[]'); } catch (e) {}
+        runsBox.innerHTML = '';
+        if (!runs.length) {
+            const e = document.createElement('div');
+            e.className = 'run-empty';
+            e.textContent = window.tr ? window.tr('menu.noRuns') : 'No runs yet — press PLAY!';
+            runsBox.appendChild(e);
+        } else {
+            for (const r of runs) {
+                const row = document.createElement('div');
+                row.className = 'run-row';
+                row.innerHTML = '<b>W' + r.wave + '</b><span>' + r.kills + ' kills</span><span>' + r.time + '</span>';
+                runsBox.appendChild(row);
+            }
+        }
+    }
+    // Прогресс редкостей: из инвентаря (виденные редкости петалей).
+    const rarBox = document.getElementById('spRar');
+    if (rarBox) {
+        const seen = new Set();
+        for (const it of (myInventory || [])) if (it && it.rarity != null) seen.add(it.rarity | 0);
+        rarBox.innerHTML = '';
+        for (let r = 0; r < 8; r++) {
+            const chip = document.createElement('span');
+            chip.className = 'rar-chip' + (seen.has(r) ? ' seen' : '');
+            chip.style.borderColor = rarityColors[r];
+            if (seen.has(r)) chip.style.background = rarityColors[r];
+            chip.textContent = 'R' + r;
+            chip.title = rarityName(r);
+            rarBox.appendChild(chip);
+        }
+    }
+    // Мини-бестиарий: иконки встреченных типов.
+    const bes = document.getElementById('spBestiary');
+    if (bes) {
+        let set = [];
+        try { set = JSON.parse(localStorage.getItem(WB_BES_KEY) || '[]'); } catch (e) {}
+        bes.innerHTML = '';
+        for (const o of set.slice(0, 12)) {
+            if (!o || !o.type) continue;
+            const img = document.createElement('img');
+            img.src = mobIconDataURL(o.shape, o.color, 0);
+            img.title = o.name || o.type;
+            bes.appendChild(img);
+        }
+        if (!set.length) {
+            const e = document.createElement('div');
+            e.className = 'run-empty';
+            e.style.fontFamily = 'var(--wb-mono)';
+            e.style.fontSize = '11.5px';
+            e.style.color = '#566278';
+            e.textContent = window.tr ? window.tr('menu.noBes') : 'Fight mobs to fill the bestiary';
+            bes.appendChild(e);
+        }
+    }
+}
+
 // ===== WAVEBORN: крупный алерт редкого дропа (RICHNESS №17) =====
-let wbDropAlertTimer = 0;
+var wbDropAlertTimer = 0;
 function wbShowDropAlert(kind, rarity, golden, diedMsg, mobName) {
     const box = document.getElementById('wbDropAlert');
     const card = document.getElementById('wbDropCard');
@@ -7665,6 +7826,9 @@ function wbBootSettings() {
     if (ru) ru.addEventListener('click', () => { wbSetLang('ru'); markLang(); });
     markLang();
     document.addEventListener('wb:lang', markLang);
+
+    // Живой герой меню (если мы уже в меню — например, автологин).
+    try { if (document.getElementById('menu').classList.contains('active')) wbMenuHeroStart(); } catch (e) {}
 }
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', wbBootSettings);

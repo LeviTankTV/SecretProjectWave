@@ -873,6 +873,9 @@ function handleWaveMsg(msg) {
                 window.__wbRun.waveStartTs = 0;
             }
             // WAVEBORN рекап: волна / киллы / время / рекорд + RETRY.
+            try { wbRunPush(msg.num, msg.kills || 0,
+                (() => { const t = Math.round(window.__wbRun.t);
+                    return Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0'); })()); } catch (e) {}
             showDeath();
             const simple = document.getElementById('wbDeathSimple');
             const recap = document.getElementById('wbRecap');
