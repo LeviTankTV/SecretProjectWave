@@ -2203,6 +2203,24 @@ function wbSpawnBurst(x, y, color, n, power) {
     wbParticles.push({ g: ring, vx: 0, vy: 0, life: 0.3, maxLife: 0.3, ringR: 46, spin: 0 });
 }
 
+// wbSpawnDamageText — всплывающая цифра урона (моно, размер от урона).
+function wbSpawnDamageText(x, y, dmg) {
+    if (wbParticles.length > 220) return;
+    const amount = Math.max(1, Math.round(dmg));
+    const big = amount >= 40;
+    const txt = new PIXI.Text(String(amount), {
+        fontFamily: 'Share Tech Mono, monospace',
+        fontSize: big ? 19 : 13,
+        fill: big ? '#ffd54f' : '#eaf9ff',
+        stroke: '#000000', strokeThickness: 3,
+    });
+    txt.anchor.set(0.5);
+    txt.x = x + (Math.random() * 16 - 8);
+    txt.y = y - 6;
+    wbParticleLayer.addChild(txt);
+    wbParticles.push({ g: txt, vx: (Math.random() - 0.5) * 30, vy: -70 - Math.random() * 30, life: 0.65, maxLife: 0.65, spin: 0, isText: true });
+}
+
 // wbSpawnSparks — мелкие искры попадания (2-4 шт).
 function wbSpawnSparks(x, y, color) {
     for (let i = 0; i < 3; i++) {
@@ -3079,6 +3097,12 @@ function buildSpiral(g, R) {
 // блик сверху, тёмный обод снизу, светлая окантовка и кольцо команды.
 function drawPlayerSprite(g, color, size, me, team) {
     g.clear();
+    // WAVEBORN: мягкая тень под игроком + неон-кольцо выделения «себя».
+    if (me) {
+        g.beginFill(0x000000, 0.30);
+        g.drawEllipse(0, size * 0.95, size * 1.05, size * 0.32);
+        g.endFill();
+    }
     // Внешнее мягкое свечение.
     g.beginFill(color, 0.22);
     g.drawCircle(0, 0, size + 6);
@@ -3099,6 +3123,13 @@ function drawPlayerSprite(g, color, size, me, team) {
     // Светлая окантовка (у себя — яркая белая).
     g.lineStyle(me ? 3 : 1.5, me ? 0xffffff : petalShade(color, 1.7), 0.95);
     g.drawCircle(0, 0, size + 1);
+    // WAVEBORN: неон-кольцо «себя» (циан, лёгкая пульсация через alpha).
+    if (me) {
+        const pulse = 0.35 + 0.2 * Math.sin(performance.now() / 300);
+        g.lineStyle(2, 0x00f0ff, pulse);
+        g.drawCircle(0, 0, size + 7);
+        g.lineStyle(0);
+    }
     // Кольцо команды.
     if (team !== 0) {
         g.lineStyle(2, team === 1 ? 0xe74c3c : 0x9b59b6, 0.9);
@@ -3653,10 +3684,12 @@ function renderMobs(mobs) {
             }
         }
         redrawMobHP(a, m);
-        // WAVEBORN: искры попадания — HP моба упал за кадр.
+        // WAVEBORN: искры попадания + всплывающие цифры урона (RICHNESS №9).
         if (a._wbHp == null) a._wbHp = m.hp;
         if (m.hp < a._wbHp - 0.4 && m.hp > 0) {
+            const dmg = a._wbHp - m.hp;
             wbSpawnSparks(a.c.x, a.c.y, rarityNum(a.rarityI));
+            wbSpawnDamageText(a.c.x, a.c.y - a.size, dmg);
         }
         a._wbHp = m.hp;
         // Мелкие мобы: блок HP+имя всплывает только когда моб подранен
@@ -4691,6 +4724,17 @@ function renderPetals(petals) {
             a.targetY = myPlayerY;
         }
         drawPetalShape(a.g, pt);
+        // WAVEBORN: блик на орбитальной петали — световая точка пробегает
+        // по кружку (фаза от угла орбиты и времени).
+        if (pt.hp > 0) {
+            const gl = 0.5 + 0.5 * Math.sin(performance.now() / 260 + (pt.angle || 0) * 2.2);
+            if (gl > 0.55) {
+                const gs = (pt.size || 8) * 0.42;
+                a.g.beginFill(0xffffff, (gl - 0.55) * 1.4);
+                a.g.drawEllipse(-gs, -gs * 0.8, gs * 0.9, gs * 0.5);
+                a.g.endFill();
+            }
+        }
         // Eye: фиксированный визуальный размер на игроке — растёт только
         // эффект (радиус орбиты) и цвет, не сам спрайт.
         if (pt.kind === 'eye') a.g.scale.set(16 / Math.max(10, pt.size));
@@ -5562,6 +5606,21 @@ function renderGround(ground) {
         let a = groundActors[g.id];
         if (!a) {
             const c = new PIXI.Container();
+            // WAVEBORN: дроп на полу — мини-карточка с рамкой редкости
+            // (визуально совпадает с инвентарём; RICHNESS №10).
+            const rc = rarityColors[Math.min(g.rarityI || 0, rarityColors.length - 1)];
+            const rcInt = parseInt(rc.slice(1), 16);
+            const bs = Math.max(14, (g.size || 8) * 2.2);
+            const cardBg = new PIXI.Graphics();
+            cardBg.beginFill(lerpHex(rcInt, 0x000000, 0.35), 0.92);
+            cardBg.drawRoundedRect(-bs, -bs, bs * 2, bs * 2, 6);
+            cardBg.endFill();
+            cardBg.beginFill(lerpHex(rcInt, 0xffffff, 0.22), 0.5);
+            cardBg.drawRoundedRect(-bs, -bs, bs * 2, bs, 6);
+            cardBg.endFill();
+            cardBg.lineStyle(2.5, rcInt, 1);
+            cardBg.drawRoundedRect(-bs, -bs, bs * 2, bs * 2, 6);
+            c.addChild(cardBg);
             const spr = new PIXI.Graphics();
             drawPetalShape(spr, g);
             c.addChild(spr);
@@ -7475,6 +7534,14 @@ function updateWaveHud(state) {
         const fill = mobRarityGradient(rc, r.rarity);
         card.style.borderColor = rc;
         card.style.background = fill;
+        // Стопка дублей: зигзаг-смещённые «призраки» за карточкой (×N глубина).
+        const ghosts = Math.min(r.count - 1, 3);
+        for (let k = ghosts; k >= 1; k--) {
+            const gh = document.createElement('div');
+            gh.className = 'wr-ghost';
+            gh.style.transform = 'translate(' + (k * 4) + 'px,' + (-k * 4) + 'px)';
+            card.appendChild(gh);
+        }
         const img = document.createElement('img');
         img.className = 'wr-silhouette';
         img.src = mobIconDataURL(r.type, r.color, r.rarity);
