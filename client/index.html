@@ -1323,19 +1323,7 @@
             100% { transform: translate3d(5%, -4%, 0) scale(1.04); }
         }
         /* Плавающие лепестки (генерирует inline theme-скрипт) */
-        .ambient { position: absolute; inset: 0; pointer-events: none; z-index: 0; }
-        .ambient .fl {
-            position: absolute; bottom: -80px; opacity: 0; will-change: transform;
-            animation: floatUp linear infinite;
-            filter: drop-shadow(0 4px 14px rgba(0,0,0,0.5));
-        }
-        @keyframes floatUp {
-            0%   { transform: translate3d(0, 0, 0) rotate(0deg); opacity: 0; }
-            8%   { opacity: var(--o, 0.5); }
-            88%  { opacity: var(--o, 0.5); }
-            100% { transform: translate3d(var(--dx, 40px), -115vh, 0) rotate(var(--rot, 320deg)); opacity: 0; }
-        }
-        .screen > *:not(.ambient):not(#lobbyOverlay):not(#lobbyDecorCanvas):not(.menuBigBtn)
+                .screen > *:not(.ambient):not(#lobbyOverlay):not(#lobbyDecorCanvas):not(.menuBigBtn)
 :not(#menuProfile):not(#menuHotbarWrap):not(#invPanel):not(#absorbPanel)
 :not(#settingsPanel):not(#onlineBox):not(#chatWindow):not(#chat)
 :not(#adminBtn):not(#adminPanel):not(#adminBadge):not(#petalTip)
@@ -1540,41 +1528,7 @@
         #loading { background: radial-gradient(60% 50% at 50% 45%, #0c1322, #04060b); }
         #loading .loader-spinner { border-color: rgba(255,255,255,0.10); border-top-color: var(--acc-cyan); box-shadow: 0 0 30px rgba(34,211,238,0.25); }
     </style>
-    <script>
-    // theme (inline): плавающие лепестки на экранах меню/логина.
-    (function () {
-        var COLORS = ['#ecf0f1', '#2ecc71', '#f1c40f', '#e74c3c', '#3498db', '#1abc9c', '#9b59b6', '#ff2d95'];
-        var SVG = '<svg viewBox="-12 -12 24 24" width="S" height="S">' +
-            '<path d="M0,-10 C7,-6 7,6 0,10 C-7,6 -7,-6 0,-10 Z" fill="C" opacity="0.85"/>' +
-            '<path d="M0,-6 C3.5,-3.5 3.5,3.5 0,6 C-3.5,3.5 -3.5,-3.5 0,-6 Z" fill="#ffffff" opacity="0.25"/></svg>';
-        function seed() {
-            document.querySelectorAll('.screen').forEach(function (scr) {
-                if (scr.querySelector('.ambient')) return;
-                var box = document.createElement('div');
-                box.className = 'ambient';
-                var n = 14;
-                for (var i = 0; i < n; i++) {
-                    var el = document.createElement('div');
-                    el.className = 'fl';
-                    var size = 10 + Math.random() * 22;
-                    var col = COLORS[Math.floor(Math.random() * COLORS.length)];
-                    el.innerHTML = SVG.replace('S', size.toFixed(0)).replace('C', col);
-                    el.style.left = (Math.random() * 100).toFixed(1) + '%';
-                    el.style.setProperty('--dx', ((Math.random() * 160) - 80).toFixed(0) + 'px');
-                    el.style.setProperty('--rot', (240 + Math.random() * 360).toFixed(0) + 'deg');
-                    el.style.setProperty('--o', (0.14 + Math.random() * 0.30).toFixed(2));
-                    el.style.animationDuration = (16 + Math.random() * 22).toFixed(1) + 's';
-                    el.style.animationDelay = '-' + (Math.random() * 30).toFixed(1) + 's';
-                    box.appendChild(el);
-                }
-                scr.insertBefore(box, scr.firstChild);
-            });
-        }
-        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', seed);
-        else seed();
-    })();
-    </script>
-
+    
     <!-- ================================================================
          THEME 2.1 — «как в SecretProject»: летающие мобы за меню,
          логотип Orbitron с золотым градиентом и бликом, неоновое трио,
