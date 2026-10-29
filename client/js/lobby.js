@@ -832,6 +832,8 @@ function handleWaveMsg(msg) {
                     else window.GameAudio.ui('open');
                 }
             } catch (e) {}
+            // WAVEBORN: босс-волна — кинематографичная тряска.
+            if (msg.special === 'boss' && window.__wbShake) window.__wbShake.amp = 0, window.__wbShake.t = 0, wbShake(7, 0.6);
             break;
         }
         case 'clear':

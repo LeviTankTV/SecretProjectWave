@@ -2153,6 +2153,89 @@ document.getElementById('game').appendChild(app.view);
 const world = new PIXI.Container();
 app.stage.addChild(world);
 
+// ===== WAVEBORN частицы (RICHNESS Б3): осколки смерти, искры попаданий =====
+const wbParticleLayer = new PIXI.Container();
+world.addChild(wbParticleLayer);
+const wbParticles = []; // {g, x, y, vx, vy, life, maxLife, spin}
+
+// wbSpawnBurst — взрыв осколков (смерть моба): треугольные осколки в цвете
+// редкости, разлёт с затуханием.
+function wbSpawnBurst(x, y, color, n, power) {
+    n = n || 8;
+    power = power || 1;
+    for (let i = 0; i < n; i++) {
+        if (wbParticles.length > 220) break; // бюджет эффектов
+        const a = (i / n) * Math.PI * 2 + Math.random() * 0.6;
+        const sp = (120 + Math.random() * 160) * power;
+        const g = new PIXI.Graphics();
+        const sz = 3 + Math.random() * 4 * power;
+        g.beginFill(color, 1);
+        g.moveTo(sz, 0);
+        g.lineTo(-sz * 0.6, sz * 0.55);
+        g.lineTo(-sz * 0.6, -sz * 0.55);
+        g.closePath();
+        g.endFill();
+        g.x = x; g.y = y;
+        wbParticleLayer.addChild(g);
+        wbParticles.push({
+            g, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+            life: 0.45 + Math.random() * 0.35, maxLife: 0.8,
+            spin: (Math.random() - 0.5) * 12,
+        });
+    }
+    // Вспышка-кольцо.
+    const ring = new PIXI.Graphics();
+    ring.lineStyle(3, color, 0.8);
+    ring.drawCircle(0, 0, 6);
+    ring.x = x; ring.y = y;
+    wbParticleLayer.addChild(ring);
+    wbParticles.push({ g: ring, vx: 0, vy: 0, life: 0.3, maxLife: 0.3, ringR: 46, spin: 0 });
+}
+
+// wbSpawnSparks — мелкие искры попадания (2-4 шт).
+function wbSpawnSparks(x, y, color) {
+    for (let i = 0; i < 3; i++) {
+        if (wbParticles.length > 220) break;
+        const a = Math.random() * Math.PI * 2;
+        const sp = 60 + Math.random() * 90;
+        const g = new PIXI.Graphics();
+        g.beginFill(color, 1);
+        g.drawCircle(0, 0, 1.5 + Math.random() * 1.5);
+        g.endFill();
+        g.x = x; g.y = y;
+        wbParticleLayer.addChild(g);
+        wbParticles.push({ g, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 0.22 + Math.random() * 0.14, maxLife: 0.36, spin: 0 });
+    }
+}
+
+function wbUpdateParticles(dtMs) {
+    const dt = Math.min(0.05, dtMs / 1000);
+    for (let i = wbParticles.length - 1; i >= 0; i--) {
+        const p = wbParticles[i];
+        p.life -= dt;
+        if (p.life <= 0) {
+            wbParticleLayer.removeChild(p.g);
+            p.g.destroy();
+            wbParticles.splice(i, 1);
+            continue;
+        }
+        p.x = (p.g.x += p.vx * dt);
+        p.y = (p.g.y += p.vy * dt);
+        p.vx *= 0.92; p.vy *= 0.92;
+        if (p.spin) p.g.rotation += p.spin * dt;
+        if (p.ringR) p.g.scale.set(1 + (1 - p.life / p.maxLife) * p.ringR * 0.06);
+        p.g.alpha = Math.min(1, p.life / p.maxLife * 1.4);
+    }
+}
+
+// Тряска камеры (только сильные события): amplitude/время, применяется в кадре.
+window.__wbShake = { t: 0, amp: 0 };
+function wbShake(amp, dur) {
+    const s = window.__wbShake;
+    if (s.t > 0 && s.amp >= amp) return; // не глушим более сильную тряску
+    s.t = dur; s.amp = amp;
+}
+
 // Линейка/сетка (админ): накладывается поверх фона зон, но под игровыми объектами
 // (порядок выставляется в bringObjectsAbove).
 const gridLayer = new PIXI.Container();
@@ -3542,6 +3625,12 @@ function renderMobs(mobs) {
             }
         }
         redrawMobHP(a, m);
+        // WAVEBORN: искры попадания — HP моба упал за кадр.
+        if (a._wbHp == null) a._wbHp = m.hp;
+        if (m.hp < a._wbHp - 0.4 && m.hp > 0) {
+            wbSpawnSparks(a.c.x, a.c.y, rarityNum(a.rarityI));
+        }
+        a._wbHp = m.hp;
         // Мелкие мобы: блок HP+имя всплывает только когда моб подранен
         // (hp < макс — без регена он не вернётся, поэтому бар не гаснет) или
         // прямо сейчас получил удар (светлый след «эха» ещё тает). Ровно это
@@ -4438,6 +4527,13 @@ function drawMobShape(g, m) {
 function spawnMobFade(msg) {
     if (!msg || !msg.id) return;
     const live = mobActors[msg.id];
+    // WAVEBORN: взрыв осколков в цвете редкости; сильные события трясут камеру.
+    const rar = live ? live.rarityI : 0;
+    const isGold = msg.color === 0xffd700 || (live && live.variant === 'gold');
+    const rc = rarityNum(rar);
+    wbSpawnBurst(msg.x, msg.y, isGold ? 0xffd700 : rc, isGold ? 12 : (rar >= 6 ? 11 : 7), rar >= 6 ? 1.35 : 1);
+    if (isGold) wbShake(9, 0.4);
+    else if (rar >= 6) wbShake(11, 0.45);
     const c = new PIXI.Container();
     const g = new PIXI.Graphics();
     drawMobShape(g, { shape: msg.shape || 'circle', size: msg.size || 20, color: msg.color != null ? msg.color : 0x888888 });
@@ -6752,6 +6848,39 @@ function tick() {
                 }
             }
             drawMobAura(a.aura, { size: a.size, rarityI: a.rarityI }, performance.now() / 1000);
+            // WAVEBORN: эффекты подвидов (RICHNESS №11).
+            if (a.variant === 'gold') {
+                // Три золотые искры на орбите.
+                const t = performance.now() / 1000;
+                for (let k = 0; k < 3; k++) {
+                    const ang = t * 2.4 + (k / 3) * Math.PI * 2;
+                    const rr = a.size * (1.5 + 0.25 * Math.sin(t * 3 + k));
+                    a.aura.beginFill(0xffd700, 0.85);
+                    a.aura.drawCircle(Math.cos(ang) * rr, Math.sin(ang) * rr, 2.6);
+                    a.aura.endFill();
+                }
+            } else if (a.variant === 'ring') {
+                const t = performance.now() / 1000;
+                a.aura.lineStyle(2, 0xf1c40f, 0.6);
+                a.aura.drawCircle(0, 0, a.size * 1.65);
+                a.aura.lineStyle(4, 0xf1c40f, 0.35);
+                const ra = t * 1.8;
+                a.aura.arc(0, 0, a.size * 1.65, ra, ra + 1.1);
+                a.aura.lineStyle(0);
+            } else if (a.variant === 'star') {
+                const p = 0.5 + 0.5 * Math.sin(performance.now() / 160);
+                for (let k = 0; k < 4; k++) {
+                    const ang = (k / 4) * Math.PI * 2 + Math.PI / 4;
+                    const rr = a.size * 1.45;
+                    a.aura.beginFill(0xfffacd, 0.35 + 0.45 * p);
+                    a.aura.drawCircle(Math.cos(ang) * rr, Math.sin(ang) * rr, 2 + 2.5 * p);
+                    a.aura.endFill();
+                }
+            } else if (a.variant === 'crescent') {
+                a.aura.lineStyle(3, 0x2c3e50, 0.55);
+                a.aura.arc(0, 0, a.size * 1.4, -Math.PI * 0.85, -Math.PI * 0.15);
+                a.aura.lineStyle(0);
+            }
             // WAVEBORN: подсветка мобов по клику на карточке ростера (2с).
             const hl = window.__wbHl;
             if (hl && performance.now() < hl.until &&
@@ -7007,6 +7136,14 @@ function tick() {
         world.scale.set(currentViewScale);
         world.x = -(camX * currentViewScale - sw / 2);
         world.y = -(camY * currentViewScale - sh / 2);
+        // WAVEBORN: тряска камеры (сильные события, затухание).
+        const shk = window.__wbShake;
+        if (shk.t > 0) {
+            shk.t -= app.ticker.deltaMS / 1000;
+            const k = Math.max(0, shk.t) * shk.amp;
+            world.x += (Math.random() * 2 - 1) * k;
+            world.y += (Math.random() * 2 - 1) * k;
+        }
     }
 
     drawMinimap();
@@ -7182,6 +7319,7 @@ function enterMenuFromWorld() {
 window.addEventListener('resize', () => app.renderer.resize(window.innerWidth, window.innerHeight));
 
 app.ticker.add(tick);
+app.ticker.add(() => wbUpdateParticles(app.ticker.deltaMS));
 
 // Инициализация экрана при загрузке — здесь, ПОСЛЕ всех объявлений (ws и пр.).
 showScreen(authToken ? 'menu' : 'login');
