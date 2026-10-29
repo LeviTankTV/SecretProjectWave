@@ -2203,6 +2203,29 @@ const app = new PIXI.Application({
 });
 document.getElementById('game').appendChild(app.view);
 
+// ===== WAVEBORN утилиты цвета/рандома (RICHNESS Б4) =====
+function hexToInt(h) { return (typeof h === 'number') ? h : parseInt(String(h).slice(1), 16); }
+function intToHex(n) { return '#' + (n & 0xffffff).toString(16).padStart(6, '0'); }
+function lerpHex(a, b, t) {
+    const ia = hexToInt(a), ib = hexToInt(b);
+    const r = Math.round((((ia >> 16) & 255) * (1 - t)) + (((ib >> 16) & 255) * t));
+    const g = Math.round((((ia >> 8) & 255) * (1 - t)) + (((ib >> 8) & 255) * t));
+    const bl = Math.round(((ia & 255) * (1 - t)) + ((ib & 255) * t));
+    return (r << 16) | (g << 8) | bl;
+}
+function lerpHex3(light, base, dark, t) {
+    return t < 0.5 ? lerpHex(light, base, t * 2) : lerpHex(base, dark, (t - 0.5) * 2);
+}
+function mulberry32(seed) {
+    let a = seed >>> 0;
+    return function () {
+        a |= 0; a = (a + 0x6D2B79F5) | 0;
+        let t = Math.imul(a ^ (a >>> 15), 1 | a);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+}
+
 const world = new PIXI.Container();
 app.stage.addChild(world);
 
@@ -2761,18 +2784,105 @@ function buildWorld(msg) {
     if (msg.wave) {
         waveModeClient = true;
         portals = [];
+        window.__wbArena = { x: msg.arenaX, y: msg.arenaY, r: msg.arenaR };
         const az = zones[msg.arenaZone] || zones[0] || { x: 0, y: 0, w: 8000, h: 5000, color: 0x2ecc71, biome: 0, index: 0 };
         const c = new PIXI.Container();
-        const deco = new PIXI.Graphics();
-        deco.position.set(az.x, az.y);
-        const baseCol = az.biome === 7 ? 0x000000 : az.color;
-        const baseA = az.biome === 7 ? 1 : 0.30;
-        deco.beginFill(baseCol, baseA);
-        deco.drawRect(0, 0, az.w, az.h);
-        deco.endFill();
-        // Тот же узор биома, что рисуется у зоны в основном мире.
-        drawBiomeDecoration(deco, az);
-        c.addChild(deco);
+        // WAVEBORN арена (RICHNESS Б4): биомный градиент + гекс-сетка +
+        // виньетка + пропсы биома. Всё внутри круга-маски, за мобами.
+        const CXa = msg.arenaX, CYa = msg.arenaY, ARa = msg.arenaR;
+        const zoneCol = az.biome === 7 ? 0x0b0b12 : az.color;
+        const lightC = lerpHex(zoneCol, 0xffffff, 0.38);
+        const darkC = shade(zoneCol, -52);
+        const grad = new PIXI.Graphics();
+        const steps = 22;
+        for (let i = steps; i >= 0; i--) {
+            const t = i / steps;
+            grad.beginFill(lerpHex3(lightC, zoneCol, darkC, t), 0.96);
+            grad.drawCircle(CXa, CYa, ARa * (0.12 + 0.88 * t) + 2);
+            grad.endFill();
+        }
+        grad.position.set(az.x, az.y);
+        c.addChild(grad);
+
+        // Гекс-сетка: статичные тонкие соты (WAVEBORN-мотив).
+        const hexg = new PIXI.Graphics();
+        hexg.position.set(az.x, az.y);
+        const HR = 44, rowH = HR * 1.5, colW = HR * Math.sqrt(3);
+        hexg.lineStyle(1, 0xffffff, 0.05);
+        const rowsN = Math.ceil((ARa * 2) / rowH) + 2;
+        const colsN = Math.ceil((ARa * 2) / colW) + 2;
+        for (let ry = -rowsN; ry <= rowsN; ry++) {
+            for (let cx2 = -colsN; cx2 <= colsN; cx2++) {
+                const hx = cx2 * colW + (ry % 2 ? colW / 2 : 0) + CXa - az.x;
+                const hy = ry * rowH + CYa - az.y;
+                if (Math.hypot(hx - (CXa - az.x), hy - (CYa - az.y)) > ARa - 10) continue;
+                hexg.moveTo(hx, hy - HR);
+                for (let k = 1; k <= 6; k++) {
+                    const aa = (k / 6) * Math.PI * 2 + Math.PI / 6;
+                    hexg.lineTo(hx + Math.cos(aa) * HR, hy + Math.sin(aa) * HR);
+                }
+            }
+        }
+        hexg.lineStyle(0);
+        c.addChild(hexg);
+
+        // Виньетка: затемнение к кромке арены.
+        const vin = new PIXI.Graphics();
+        vin.position.set(az.x, az.y);
+        for (let i = 0; i < 10; i++) {
+            vin.beginFill(0x000000, 0.035);
+            vin.drawCircle(CXa - az.x, CYa - az.y, ARa * (0.78 + 0.022 * i));
+            vin.endFill();
+        }
+        c.addChild(vin);
+
+        // Пропсы биома: 8-14 крупных, детерминированно на лобби (сид по арене).
+        const seedA = ((CXa | 0) * 73856093) ^ ((CYa | 0) * 19349663) ^ (ARa | 0);
+        const rngA = mulberry32(seedA);
+        const propsA = new PIXI.Graphics();
+        propsA.position.set(az.x, az.y);
+        const propN = 8 + Math.floor(rngA() * 7);
+        for (let i = 0; i < propN; i++) {
+            const aa = rngA() * Math.PI * 2;
+            const rr = ARa * (0.15 + rngA() * 0.78);
+            const px = CXa - az.x + Math.cos(aa) * rr;
+            const py = CYa - az.y + Math.sin(aa) * rr;
+            const sz = 22 + rngA() * 34;
+            const tone = shade(zoneCol, -30 - Math.floor(rngA() * 25));
+            const kind = rngA();
+            if (kind < 0.45) {
+                propsA.beginFill(tone, 0.85);
+                propsA.moveTo(px, py - sz);
+                propsA.lineTo(px + sz * 0.55, py);
+                propsA.lineTo(px, py + sz * 0.8);
+                propsA.lineTo(px - sz * 0.55, py);
+                propsA.closePath();
+                propsA.endFill();
+                propsA.lineStyle(1.5, lerpHex(tone, 0xffffff, 0.35), 0.5);
+                propsA.moveTo(px, py - sz);
+                propsA.lineTo(px, py + sz * 0.8);
+                propsA.lineStyle(0);
+            } else if (kind < 0.8) {
+                propsA.beginFill(tone, 0.8);
+                const sides = 5 + Math.floor(rngA() * 3);
+                for (let k = 0; k <= sides; k++) {
+                    const a2 = (k / sides) * Math.PI * 2;
+                    const r2 = sz * (0.7 + rngA() * 0.4);
+                    const vx = px + Math.cos(a2) * r2, vy = py + Math.sin(a2) * r2 * 0.7;
+                    if (k === 0) propsA.moveTo(vx, vy); else propsA.lineTo(vx, vy);
+                }
+                propsA.endFill();
+            } else {
+                propsA.lineStyle(3, tone, 0.9);
+                propsA.moveTo(px, py + sz * 0.5);
+                propsA.lineTo(px + sz * 0.15, py - sz * 0.5);
+                propsA.lineStyle(0);
+                propsA.beginFill(lerpHex(tone, 0xffffff, 0.3), 0.9);
+                propsA.drawCircle(px + sz * 0.15, py - sz * 0.5, 4.5);
+                propsA.endFill();
+            }
+        }
+        c.addChild(propsA);
         // Круглая маска арены (в локальных координатах контейнера).
         const mask = new PIXI.Graphics();
         mask.beginFill(0xffffff);
@@ -7512,6 +7622,58 @@ window.addEventListener('resize', () => app.renderer.resize(window.innerWidth, w
 
 app.ticker.add(tick);
 app.ticker.add(() => wbUpdateParticles(app.ticker.deltaMS));
+
+// ===== WAVEBORN атмосфера арены (RICHNESS №15) =====
+const wbAir = new PIXI.Container();
+world.addChild(wbAir);
+let wbAirT = 0;
+let wbBossGlowG = null;
+app.ticker.add(() => {
+    const dt = app.ticker.deltaMS / 1000;
+    wbAirT += dt;
+    // Дрейфующие пылинки — с 12-й волны (плотность растёт).
+    const wn = (typeof state !== 'undefined' && state) ? (state.waveNum || 0) : 0;
+    if (wn >= 12 && wbAir.children.length < 26 && Math.random() < 0.2) {
+        const g = new PIXI.Graphics();
+        const arena = window.__wbArena || { x: 0, y: 0, r: 1300 };
+        const a = Math.random() * Math.PI * 2;
+        const rr = Math.sqrt(Math.random()) * arena.r * 0.95;
+        g.beginFill(0xbfe8ff, 0.10 + Math.random() * 0.10);
+        g.drawCircle(0, 0, 1.5 + Math.random() * 2.2);
+        g.endFill();
+        g.x = arena.x + Math.cos(a) * rr;
+        g.y = arena.y + Math.sin(a) * rr;
+        g._vx = (Math.random() - 0.5) * 18;
+        g._vy = -8 - Math.random() * 14;
+        wbAir.addChild(g);
+    }
+    for (let i = wbAir.children.length - 1; i >= 0; i--) {
+        const g = wbAir.children[i];
+        g.x += (g._vx || 0) * dt;
+        g.y += (g._vy || 0) * dt;
+        if (Math.random() < 0.004) g._vx = (Math.random() - 0.5) * 24;
+        if (g.y < (window.__wbArena ? window.__wbArena.y - window.__wbArena.r : -2000)) {
+            wbAir.removeChild(g); g.destroy();
+        }
+    }
+    // Босс-волна: пульсирующее красное свечение кромки.
+    if (window.__wbBossGlow && window.__wbArena) {
+        if (!wbBossGlowG) {
+            wbBossGlowG = new PIXI.Graphics();
+            world.addChild(wbBossGlowG);
+        }
+        const p = 0.5 + 0.5 * Math.sin(wbAirT * 2.2);
+        const arena = window.__wbArena;
+        wbBossGlowG.clear();
+        wbBossGlowG.lineStyle(26, 0xff2d3f, 0.10 + 0.10 * p);
+        wbBossGlowG.drawCircle(arena.x, arena.y, arena.r - 14);
+        wbBossGlowG.lineStyle(6, 0xff5560, 0.25 + 0.25 * p);
+        wbBossGlowG.drawCircle(arena.x, arena.y, arena.r - 24);
+        wbBossGlowG.lineStyle(0);
+    } else if (wbBossGlowG) {
+        wbBossGlowG.clear();
+    }
+});
 
 // Инициализация экрана при загрузке — здесь, ПОСЛЕ всех объявлений (ws и пр.).
 showScreen(authToken ? 'menu' : 'login');
